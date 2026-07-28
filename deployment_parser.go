@@ -366,6 +366,7 @@ func StripSecretVariableValues(ds *AstroDeploymentSpec) *AstroDeploymentSpec {
 			if v.Secret {
 				v.Value = ""
 			}
+			v.Configured = false
 			stripped.Variables[k] = v
 		}
 	}

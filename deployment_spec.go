@@ -73,8 +73,10 @@ type Variable struct {
 	// message) but keeps them editable so existing values can be cleared.
 	Deprecated string `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
 	// Configured signals an inline secret is stored for this deployment but
-	// its value is intentionally omitted from template API responses.
-	// Template-only: stripped before deployment/v1 persistence.
+	// its value is intentionally omitted from template API responses. A
+	// finalized, signed deployment/v1 template may carry this as an opaque
+	// "preserve the existing value" sentinel; the deploy handler resolves it
+	// server-side and clears the flag before persistence.
 	Configured bool `json:"configured,omitempty" yaml:"configured,omitempty"`
 }
 

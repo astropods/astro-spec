@@ -557,7 +557,7 @@ func TestStripSecretVariableValues(t *testing.T) {
 			Endpoints: map[string]Endpoint{"http": {Port: 8080}},
 		},
 		Variables: map[string]Variable{
-			"API_KEY":     {Value: "sk-secret-key", Description: "API key", Optional: false, Secret: true},
+			"API_KEY":     {Value: "sk-secret-key", Description: "API key", Optional: false, Secret: true, Configured: true},
 			"SLACK_TOKEN": {Value: "xoxb-secret", Description: "Slack token", Optional: true, Secret: true},
 			"LOG_LEVEL":   {Value: "debug", Description: "Log level", Secret: false},
 		},
@@ -576,6 +576,9 @@ func TestStripSecretVariableValues(t *testing.T) {
 	}
 	if stripped.Variables["API_KEY"].Description != "API key" {
 		t.Error("description lost in strip")
+	}
+	if stripped.Variables["API_KEY"].Configured {
+		t.Error("configured preservation marker must not be persisted")
 	}
 	if stripped.Variables["SLACK_TOKEN"].Value != "" {
 		t.Error("slack token value should be empty")
