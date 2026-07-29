@@ -1048,6 +1048,14 @@ func TestParseDeploymentSpec_Variable_RequiredNoValueNoRef(t *testing.T) {
 	}
 }
 
+func TestParseDeploymentSpec_Variable_RequiredConfiguredSecret(t *testing.T) {
+	body := varFixture(false, "", "") + "    configured: true\n"
+	_, err := ParseDeploymentSpec([]byte(body))
+	if err != nil {
+		t.Fatalf("required configured secret should be valid, got: %v", err)
+	}
+}
+
 func TestParseDeploymentSpec_Variable_RequiredValueOnly(t *testing.T) {
 	_, err := ParseDeploymentSpec([]byte(varFixture(false, "v", "")))
 	if err != nil {
