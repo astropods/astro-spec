@@ -328,8 +328,9 @@ func validateVariablesFulfilled(ds *AstroDeploymentSpec) error {
 		if len(v.Options) > 0 {
 			return fmt.Errorf("variables.%s: options field is not allowed in deployment/v1", key)
 		}
-		// Rule 12: non-optional must have a value or a ref
-		if !v.Optional && v.Value == "" && v.Ref == "" {
+		// Rule 12: non-optional must have a value, a ref, or an opaque
+		// configured-secret marker from a finalized configure template.
+		if !v.Optional && v.Value == "" && v.Ref == "" && !v.Configured {
 			return fmt.Errorf("variables.%s.value: required variable has no value", key)
 		}
 		// Rule 12e: value and ref are mutually exclusive
@@ -366,6 +367,7 @@ func StripSecretVariableValues(ds *AstroDeploymentSpec) *AstroDeploymentSpec {
 			if v.Secret {
 				v.Value = ""
 			}
+			v.Configured = false
 			stripped.Variables[k] = v
 		}
 	}
