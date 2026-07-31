@@ -1,14 +1,32 @@
+<div align="center">
+
 # astro-spec
 
-Parser and type definitions for the Astro AI agent specification (`astropods.yml`).
+**Parser and type definitions for the Astro AI agent specification (`astropods.yml`).**
 
-This package is the single source of truth for how an agent's declarative
-configuration is parsed and validated. It is shared by both `astro-cli` (which
-builds and registers agents) and `astro-server` (which deploys them), so the two
-always agree on the meaning of a spec.
+[![Go Reference](https://pkg.go.dev/badge/github.com/astropods/astro-spec.svg)](https://pkg.go.dev/github.com/astropods/astro-spec)
+[![Go Version](https://img.shields.io/badge/go-1.24-00ADD8?logo=go&logoColor=white)](go.mod)
 
-For the full specification reference, see
-<https://docs.astropods.com/astropods-package-spec>.
+[Spec Reference](https://docs.astropods.com/astropods-package-spec) · [Installation](#installation) · [Usage](#usage) · [The Spec](#the-spec) · [API](#api-surface)
+
+</div>
+
+---
+
+## Overview
+
+`astro-spec` is the single source of truth for how an agent's declarative
+configuration is parsed and validated across the Astro platform. It is consumed
+as a shared Go module by both:
+
+- **`astro-cli`** — builds, pushes, and registers agents, and
+- **`astro-server`** — deploys them to the cluster,
+
+so the two always agree on the meaning of an `astropods.yml`. The package also
+emits a JSON Schema for editor autocomplete and validation.
+
+> 📖 For the complete field-by-field specification, see the
+> [**Astro Package Spec reference**](https://docs.astropods.com/astropods-package-spec).
 
 ## Installation
 
@@ -20,6 +38,8 @@ go get github.com/astropods/astro-spec
 import spec "github.com/astropods/astro-spec"
 ```
 
+Requires **Go 1.24+**.
+
 ## Usage
 
 Parse an `astropods.yml` from disk:
@@ -27,52 +47,97 @@ Parse an `astropods.yml` from disk:
 ```go
 s, err := spec.ParseFile("astropods.yml")
 if err != nil {
-    log.Fatal(err)
+    log.Fatalf("invalid spec: %v", err)
 }
-fmt.Println(s.Name)
+fmt.Println(s.Name, "→", s.Agent.Image)
 ```
 
-`Parse` / `ParseString` accept in-memory content, and `ParseSpec` parses with
-required-field validation.
+| Function                | Input             | Validation            |
+|-------------------------|-------------------|-----------------------|
+| `Parse(data []byte)`    | in-memory bytes   | syntax only           |
+| `ParseString(s string)` | in-memory string  | syntax only           |
+| `ParseFile(path)`       | file on disk      | syntax only           |
+| `ParseSpec(path)`       | file on disk      | required-field checks |
 
-## What's in the spec
+## The Spec
 
 An `AstroSpec` describes one agent and its supporting components:
 
-| Field          | Purpose                                              |
-|----------------|------------------------------------------------------|
-| `agent`        | The main agent container (image or build)            |
-| `models`       | Model sidecar containers                             |
-| `knowledge`    | Knowledge store containers                           |
-| `integrations` | Integration sidecar containers                       |
-| `providers`    | Custom provider definitions                          |
-| `inputs`       | User-supplied inputs injected into every container   |
-| `ingestion`    | Data ingestion pipelines                             |
-| `dev`          | Local development overrides                           |
+| Field          | Purpose                                            |
+|----------------|----------------------------------------------------|
+| `spec`         | Spec version — must be `package/v1`                |
+| `name`         | Unique agent name                                  |
+| `meta`         | Metadata such as `visibility` (`public`/`private`) |
+| `agent`        | The main agent container (image or build)          |
+| `models`       | Model sidecar containers                           |
+| `knowledge`    | Knowledge store containers                         |
+| `integrations` | Integration sidecar containers                     |
+| `providers`    | Custom provider definitions                        |
+| `inputs`       | User-supplied inputs injected into every container |
+| `ingestion`    | Data ingestion pipelines                           |
+| `dev`          | Local development overrides                        |
 
-## Package surface
+### Example
 
-- **Parsing** — `Parse`, `ParseString`, `ParseFile`, `ParseSpec`,
-  `ParseDeploymentSpec`, `SerializeDeploymentSpec`.
-- **Validation** — `ValidateName`, `ValidateVarName`, `ValidateReferences`,
-  `SecretDefaultViolations`, `DeprecationWarnings`.
-- **References** — `ParseReferences`, `ExtractAllReferences`, `IsReference`
-  for resolving `${...}`-style references between components.
-- **Env resolution** — `ResolveEnvVars` and the credential-key helpers derive
-  the environment each container receives at deploy time.
-- **Providers** — `LookupBuiltin`, `GetProvider`, and `IsCloud*Provider`
-  describe the built-in managed providers and their credential requirements.
-- **JSON Schema** — `Schema()` returns the embedded JSON Schema for editor
-  autocomplete and validation.
+```yaml
+spec: package/v1
+name: support-agent
+meta:
+  visibility: private
+
+agent:
+  image: ghcr.io/acme/support-agent:latest
+  interfaces:
+    frontend: true
+    messaging: true
+
+models:
+  primary:
+    provider: anthropic
+  backup:
+    provider: openai
+
+knowledge:
+  docs:
+    provider: qdrant
+
+integrations:
+  github:
+    provider: github
+
+ingestion:
+  docs-sync:
+    container:
+      image: acme/docs-ingest:latest
+      environment:
+        SOURCE_REPO: acme/handbook
+    trigger:
+      type: schedule
+```
+
+Components can reference one another with `${...}` references (for example, an
+agent reading a knowledge store's connection URL); these are parsed and
+validated by the reference helpers below.
+
+## API Surface
+
+| Area              | Functions                                                                                     |
+|-------------------|-----------------------------------------------------------------------------------------------|
+| **Parsing**       | `Parse`, `ParseString`, `ParseFile`, `ParseSpec`, `ParseDeploymentSpec`, `SerializeDeploymentSpec` |
+| **Validation**    | `ValidateName`, `ValidateVarName`, `ValidateReferences`, `SecretDefaultViolations`, `DeprecationWarnings` |
+| **References**    | `ParseReferences`, `ExtractAllReferences`, `IsReference`, `IsVariableReference`               |
+| **Env resolution**| `ResolveEnvVars`, `AllCredentialKeys`, `AgentConnectionKeys`, and related credential-key helpers |
+| **Providers**     | `LookupBuiltin`, `GetProvider`, `IsCloudModelProvider`, `IsGatewayModelProvider`, `CredentialKeys` |
+| **JSON Schema**   | `Schema()` — returns the embedded JSON Schema                                                  |
 
 ## JSON Schema
 
-`astropods.schema.json` is generated by reflecting over the Go types. Regenerate
-it after changing any spec type:
+`astropods.schema.json` is generated by reflecting over the Go types.
+Regenerate it after changing any spec type:
 
 ```sh
 go generate ./...
-# or
+# equivalently:
 go run ./cmd/generate-schema
 ```
 
@@ -81,3 +146,5 @@ go run ./cmd/generate-schema
 ```sh
 go test ./...
 ```
+
+Part of the [Astro AI](https://docs.astropods.com) platform.
