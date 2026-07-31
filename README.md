@@ -116,16 +116,14 @@ ingestion:
 ```
 
 Components can reference one another with `${...}` references (for example, an
-agent reading a knowledge store's connection URL); these are parsed and
-validated by the reference helpers below.
+agent reading a knowledge store's connection URL).
 
 ## API Surface
 
 | Area              | Functions                                                                                     |
 |-------------------|-----------------------------------------------------------------------------------------------|
-| **Parsing**       | `Parse`, `ParseString`, `ParseFile`, `ParseSpec`, `ParseDeploymentSpec`, `SerializeDeploymentSpec` |
-| **Validation**    | `ValidateName`, `ValidateVarName`, `ValidateReferences`, `SecretDefaultViolations`, `DeprecationWarnings` |
-| **References**    | `ParseReferences`, `ExtractAllReferences`, `IsReference`, `IsVariableReference`               |
+| **Parsing**       | `Parse`, `ParseString`, `ParseFile`, `ParseSpec`                                              |
+| **Validation**    | `ValidateName`, `ValidateVarName`, `SecretDefaultViolations`, `DeprecationWarnings`           |
 | **Env resolution**| `ResolveEnvVars`, `AllCredentialKeys`, `AgentConnectionKeys`, and related credential-key helpers |
 | **Providers**     | `LookupBuiltin`, `GetProvider`, `IsCloudModelProvider`, `IsGatewayModelProvider`, `CredentialKeys` |
 | **JSON Schema**   | `Schema()` — returns the embedded JSON Schema                                                  |

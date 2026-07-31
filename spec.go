@@ -86,6 +86,12 @@ type Healthcheck struct {
 	Retries  int      `json:"retries,omitempty" yaml:"retries,omitempty"`   // Number of retries before unhealthy (default: 3)
 }
 
+// DefaultAgentVolumeMount is the mount path for the disk every agent gets by
+// default. Setting agent.volume routes the agent through the StatefulSet + PVC
+// path, so this makes persistent disk a guaranteed default. The messaging
+// sidecar mounts the same volume under a subPath.
+const DefaultAgentVolumeMount = "/data"
+
 // Input declares a user-supplied value prompted at deploy time and injected as an env var.
 // The name is used directly as the env var key in the target container.
 type Input struct {

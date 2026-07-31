@@ -276,19 +276,3 @@ func CredentialStorageKeyMap(provider string) map[string]string {
 	return m
 }
 
-// ProviderEndpoints returns the default endpoints for a self-hosted knowledge provider,
-// derived from the provider registry. Used by reference validation for bound entries
-// (whose Endpoints map is empty).
-func ProviderEndpoints(provider string) map[string]Endpoint {
-	p := GetProvider(provider)
-	if p.Name == "" {
-		return nil
-	}
-	eps := map[string]Endpoint{
-		"http": {Port: p.DefaultPort, Protocol: "http"},
-	}
-	for _, ep := range p.ExtraPorts {
-		eps[ep.Name] = Endpoint{Port: ep.Port, Protocol: ep.Name}
-	}
-	return eps
-}
