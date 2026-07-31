@@ -147,4 +147,16 @@ go run ./cmd/generate-schema
 go test ./...
 ```
 
-Part of the [Astro AI](https://docs.astropods.com) platform.
+When you change a spec type, keep `astropods.schema.json` in sync by
+regenerating it (see [JSON Schema](#json-schema)).
+
+## Contributing
+
+Contributions are welcome. Please open an issue or pull request. Before
+submitting, make sure the tests pass (`go test ./...`) and, if you touched any
+spec type, that the JSON Schema has been regenerated.
+
+## License
+
+Part of the [Astro AI](https://docs.astropods.com) platform. Licensed under the
+[Apache License 2.0](LICENSE) — Copyright 2026 Postman Inc.
