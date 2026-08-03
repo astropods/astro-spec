@@ -19,6 +19,10 @@
             "private"
           ],
           "description": "Agent visibility: public or private"
+        },
+        "agentcore": {
+          "type": "boolean",
+          "description": "Run the agent in AWS Bedrock AgentCore mode (dev: serve /invocations + invoke-per-turn)"
         }
       },
       "additionalProperties": false,
