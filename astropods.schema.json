@@ -1180,10 +1180,6 @@
             "messagingImage": {
               "type": "string",
               "description": "Custom image for the messaging sidecar"
-            },
-            "playgroundImage": {
-              "type": "string",
-              "description": "Custom image for the playground UI"
             }
           },
           "additionalProperties": false,

@@ -528,8 +528,7 @@ func (d *Dev) MessagingLogLevel() string {
 
 // DevOverrides allows overriding default images for local dev services.
 type DevOverrides struct {
-	MessagingImage  string `json:"messagingImage,omitempty" yaml:"messagingImage,omitempty" jsonschema:"description=Custom image for the messaging sidecar"`
-	PlaygroundImage string `json:"playgroundImage,omitempty" yaml:"playgroundImage,omitempty" jsonschema:"description=Custom image for the playground UI"`
+	MessagingImage string `json:"messagingImage,omitempty" yaml:"messagingImage,omitempty" jsonschema:"description=Custom image for the messaging sidecar"`
 }
 
 // Ingestion represents a data ingestion job — a container that runs on a trigger.
