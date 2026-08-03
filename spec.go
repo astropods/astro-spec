@@ -25,6 +25,11 @@ type AstroSpec struct {
 
 type Meta struct {
 	Visibility string `json:"visibility,omitempty" yaml:"visibility,omitempty" jsonschema:"description=Agent visibility: public or private,enum=public,enum=private"`
+	// AgentCore opts the agent into AWS Bedrock AgentCore mode. When true, the
+	// dev CLI serves the agent over the AgentCore /invocations contract and the
+	// messaging sidecar invokes it per turn (AGENT_TRANSPORT=agentcore) instead
+	// of the default gRPC dial-in. Empty/false = default runtime.
+	AgentCore bool `json:"agentcore,omitempty" yaml:"agentcore,omitempty" jsonschema:"description=Run the agent in AWS Bedrock AgentCore mode (dev: serve /invocations + invoke-per-turn)"`
 }
 
 type Container struct {
