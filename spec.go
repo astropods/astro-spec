@@ -25,12 +25,11 @@ type AstroSpec struct {
 
 type Meta struct {
 	Visibility string `json:"visibility,omitempty" yaml:"visibility,omitempty" jsonschema:"description=Agent visibility: public or private,enum=public,enum=private"`
-	// AgentCore opts the agent into AWS Bedrock AgentCore mode. When true, the
-	// dev CLI serves the agent over the AgentCore /invocations contract and the
-	// messaging sidecar invokes it per turn (AGENT_TRANSPORT=agentcore) instead
-	// of the default gRPC dial-in. Empty/false = default runtime.
-	AgentCore bool `json:"agentcore,omitempty" yaml:"agentcore,omitempty" jsonschema:"description=Run the agent in AWS Bedrock AgentCore mode (dev: serve /invocations + invoke-per-turn)"`
 }
+
+// AgentCoreRuntime is the agent.annotations.runtime value that opts an agent
+// into AWS Bedrock AgentCore mode.
+const AgentCoreRuntime = "agentcore"
 
 type Container struct {
 	Image       string       `json:"image,omitempty" yaml:"image,omitempty"`
@@ -39,6 +38,11 @@ type Container struct {
 	Interfaces  *Interfaces  `json:"interfaces,omitempty" yaml:"interfaces,omitempty" jsonschema:"description=Agent capabilities: frontend and/or messaging"`
 	Healthcheck *Healthcheck `json:"healthcheck,omitempty" yaml:"healthcheck,omitempty"`
 	Inputs      []Input      `json:"inputs,omitempty" yaml:"inputs,omitempty" jsonschema:"description=User-supplied inputs injected into the agent container"`
+	// Annotations are agent-scoped key/value hints. Well-known key: "runtime"
+	// selects the agent runtime ("agentcore" for AWS Bedrock AgentCore mode;
+	// empty/absent = the default gRPC-dial-in runtime). Scoped to the agent
+	// container so it never reads as spec-wide.
+	Annotations map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty" jsonschema:"description=Agent-scoped annotations. Well-known: runtime selects the agent runtime (e.g. agentcore)"`
 	// AIGateway opts the agent into the Astro AI Gateway. DEPRECATED at the spec
 	// level in favor of a model with `provider: gateway` — still honored (injects
 	// ASTRO_GATEWAY_URL + ASTRO_GATEWAY_API_KEY, agent picks the model at call
@@ -46,6 +50,17 @@ type Container struct {
 	// deploy time. The boolean and a gateway model entry are mutually exclusive.
 	// (Not marked //Deprecated: so internal backward-compat reads don't trip SA1019.)
 	AIGateway bool `json:"astro_ai_gateway,omitempty" yaml:"astro_ai_gateway,omitempty" jsonschema:"description=Deprecated: use a model with provider: gateway. Enables Astro AI Gateway access (injects ASTRO_GATEWAY_URL and ASTRO_GATEWAY_API_KEY)"`
+}
+
+// Runtime returns the agent's declared runtime annotation (empty = default).
+func (c Container) Runtime() string {
+	return c.Annotations["runtime"]
+}
+
+// IsAgentCore reports whether the agent opts into AWS Bedrock AgentCore mode
+// via annotations.runtime: agentcore.
+func (c Container) IsAgentCore() bool {
+	return c.Annotations["runtime"] == AgentCoreRuntime
 }
 
 // Interfaces declares agent interface capabilities.

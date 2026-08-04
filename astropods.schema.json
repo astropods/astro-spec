@@ -19,10 +19,6 @@
             "private"
           ],
           "description": "Agent visibility: public or private"
-        },
-        "agentcore": {
-          "type": "boolean",
-          "description": "Run the agent in AWS Bedrock AgentCore mode (dev: serve /invocations + invoke-per-turn)"
         }
       },
       "additionalProperties": false,
@@ -177,6 +173,13 @@
           },
           "type": "array",
           "description": "User-supplied inputs injected into the agent container"
+        },
+        "annotations": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object",
+          "description": "Agent-scoped annotations. Well-known: runtime selects the agent runtime (e.g. agentcore)"
         },
         "astro_ai_gateway": {
           "type": "boolean",
