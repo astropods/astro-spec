@@ -65,9 +65,9 @@ An `AstroSpec` describes one agent and its supporting components:
 
 | Field          | Purpose                                            |
 |----------------|----------------------------------------------------|
-| `spec`         | Spec version — must be `package/v1`                |
+| `spec`         | Spec version — must be `blueprint/v1`              |
 | `name`         | Unique agent name                                  |
-| `meta`         | Metadata such as `visibility` (`public`/`private`) |
+| `meta`         | **Deprecated — omit.** `description`/`tags` moved to the Agent Card (v1.2); `visibility` to the platform UI/API (v1.5) |
 | `agent`        | The main agent container (image or build)          |
 | `models`       | Model sidecar containers                           |
 | `knowledge`    | Knowledge store containers                         |
@@ -80,10 +80,8 @@ An `AstroSpec` describes one agent and its supporting components:
 ### Example
 
 ```yaml
-spec: package/v1
+spec: blueprint/v1
 name: support-agent
-meta:
-  visibility: private
 
 agent:
   image: ghcr.io/acme/support-agent:latest
