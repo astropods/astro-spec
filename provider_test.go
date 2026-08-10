@@ -81,3 +81,35 @@ func TestGatewayModel_Semantics(t *testing.T) {
 		t.Errorf("gateway ResolvedContainer() = %+v, want zero value", rc)
 	}
 }
+
+func TestConnectPort(t *testing.T) {
+	tests := []struct {
+		provider string
+		want     int
+	}{
+		{"neo4j", 7687}, // bolt, not the 7474 HTTP browser port
+		{"postgres", 5432},
+		{"redis", 6379},
+		{"qdrant", 6333},
+		{"mysql", 3306},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.provider, func(t *testing.T) {
+			p, ok := LookupBuiltin("knowledge", tt.provider)
+			if !ok {
+				t.Fatalf("%s is not registered under 'knowledge'", tt.provider)
+			}
+			if got := p.ConnectPort(); got != tt.want {
+				t.Errorf("ConnectPort() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestConnectPort_NeoKeepsDefaultPortForContainerAndHealth(t *testing.T) {
+	p, _ := LookupBuiltin("knowledge", "neo4j")
+	if p.DefaultPort != 7474 {
+		t.Errorf("DefaultPort = %d, want 7474 (container port and HTTP health check)", p.DefaultPort)
+	}
+}
