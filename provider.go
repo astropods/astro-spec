@@ -37,6 +37,7 @@ type BuiltinProvider struct {
 	// Self-hosted provider fields
 	Image          string
 	DefaultPort    int
+	ClientPort     int // port agents connect on when it differs from DefaultPort (neo4j: bolt, not HTTP)
 	ExtraPorts     []PortDef
 	MountPath      string
 	EnvPrefix      string
@@ -53,6 +54,14 @@ type BuiltinProvider struct {
 	// Each entry maps a reference attribute (e.g. "user") to its storage key (e.g. "USERNAME").
 	// Used by ${knowledge.*.credentials.<attr>} reference validation and deploy-time resolution.
 	BindCredentials []BindCredentialDef
+}
+
+// ConnectPort returns the port agents connect on.
+func (p BuiltinProvider) ConnectPort() int {
+	if p.ClientPort != 0 {
+		return p.ClientPort
+	}
+	return p.DefaultPort
 }
 
 // builtinProviders is the single authoritative list of all platform-known providers.
@@ -130,7 +139,7 @@ var builtinProviders = []BuiltinProvider{
 	},
 	{
 		Name: "neo4j", Section: "knowledge",
-		Image: "neo4j:5-community", DefaultPort: 7474,
+		Image: "neo4j:5-community", DefaultPort: 7474, ClientPort: 7687,
 		ExtraPorts: []PortDef{{Name: "bolt", Port: 7687}},
 		MountPath:  "/data", EnvPrefix: "NEO4J", URLScheme: "bolt",
 		HealthPath: "/",
@@ -275,4 +284,3 @@ func CredentialStorageKeyMap(provider string) map[string]string {
 	}
 	return m
 }
-
