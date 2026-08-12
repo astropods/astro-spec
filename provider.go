@@ -20,6 +20,13 @@ type PortDef struct {
 type BindCredentialDef struct {
 	Attr       string // reference attribute (e.g. "user", "password")
 	StorageKey string // exact key in credentials store (e.g. "POSTGRES_USER")
+
+	// BindOnly marks a credential that is meaningful only when binding an
+	// external store. Self-hosted containers we deploy ourselves never consume
+	// it, so it is excluded from their env. A TLS CA certificate is the
+	// motivating case: it describes how to trust someone else's database, and
+	// has no meaning for a container we start on the user's behalf.
+	BindOnly bool
 }
 
 // BuiltinProvider is the single canonical type for every platform-known provider.
@@ -114,6 +121,7 @@ var builtinProviders = []BuiltinProvider{
 			{Attr: "user", StorageKey: "POSTGRES_USER"},
 			{Attr: "password", StorageKey: "POSTGRES_PASSWORD"},
 			{Attr: "database", StorageKey: "POSTGRES_DB"},
+			{Attr: "ssl_ca", StorageKey: "POSTGRES_SSL_CA", BindOnly: true},
 		},
 	},
 	{
@@ -275,4 +283,3 @@ func CredentialStorageKeyMap(provider string) map[string]string {
 	}
 	return m
 }
-
