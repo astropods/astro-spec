@@ -20,13 +20,7 @@ type PortDef struct {
 type BindCredentialDef struct {
 	Attr       string // reference attribute (e.g. "user", "password")
 	StorageKey string // exact key in credentials store (e.g. "POSTGRES_USER")
-
-	// BindOnly marks a credential that is meaningful only when binding an
-	// external store. Self-hosted containers we deploy ourselves never consume
-	// it, so it is excluded from their env. A TLS CA certificate is the
-	// motivating case: it describes how to trust someone else's database, and
-	// has no meaning for a container we start on the user's behalf.
-	BindOnly bool
+	BindOnly   bool   // external stores only; excluded from self-hosted container env
 }
 
 // BuiltinProvider is the single canonical type for every platform-known provider.
