@@ -8,7 +8,7 @@ import (
 var (
 	// nameRegex matches agent names: lowercase alphanumeric with hyphens,
 	// must start with a letter and end with alphanumeric.
-	// Length is enforced separately (4–63 characters).
+	// Length is enforced separately (2–63 characters).
 	nameRegex = regexp.MustCompile(`^[a-z][a-z0-9-]*[a-z0-9]$`)
 
 	// ReservedNames is the set of names that cannot be used for agents.
@@ -28,14 +28,14 @@ var (
 
 // ValidateName checks whether name is a valid Astro agent name.
 // Rules:
-//   - 4–63 characters
+//   - 2–63 characters
 //   - lowercase alphanumeric with hyphens only
 //   - must start with a lowercase letter
 //   - must end with alphanumeric
 //   - cannot be a reserved platform name (astro, agent, model, integration)
 func ValidateName(name string) error {
-	if len(name) < 4 {
-		return fmt.Errorf("name must be at least 4 characters")
+	if len(name) < 2 {
+		return fmt.Errorf("name must be at least 2 characters")
 	}
 	if len(name) > 63 {
 		return fmt.Errorf("name cannot exceed 63 characters")
