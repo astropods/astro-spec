@@ -1386,3 +1386,23 @@ func TestDeprecationWarnings_AIGatewayBoolean(t *testing.T) {
 		t.Errorf("expected astro_ai_gateway deprecation warning, got %v", w)
 	}
 }
+
+func TestIsKnownSpecVersion(t *testing.T) {
+	tests := []struct {
+		version string
+		want    bool
+	}{
+		{version: "blueprint/v1", want: true},
+		{version: "package/v1", want: true},
+		{version: " blueprint/v1 ", want: true},
+		{version: "banana/v9"},
+		{version: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			if got := IsKnownSpecVersion(tt.version); got != tt.want {
+				t.Errorf("IsKnownSpecVersion(%q) = %v, want %v", tt.version, got, tt.want)
+			}
+		})
+	}
+}

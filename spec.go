@@ -4,13 +4,15 @@ package spec
 
 import (
 	"encoding/json"
+	"slices"
+	"strings"
 
 	"github.com/invopop/jsonschema"
 )
 
 // AstroSpec represents the complete Astro specification
 type AstroSpec struct {
-	Spec         string                    `json:"spec" yaml:"spec" jsonschema:"description=Spec version. Must be package/v1"`
+	Spec         string                    `json:"spec" yaml:"spec" jsonschema:"description=Spec version. Current is blueprint/v1"`
 	Name         string                    `json:"name" yaml:"name" jsonschema:"description=Unique agent name"`
 	Meta         Meta                      `json:"meta,omitempty" yaml:"meta,omitempty"`
 	Agent        Container                 `json:"agent" yaml:"agent" jsonschema:"description=Main agent container"`
@@ -25,6 +27,15 @@ type AstroSpec struct {
 
 type Meta struct {
 	Visibility string `json:"visibility,omitempty" yaml:"visibility,omitempty" jsonschema:"description=Agent visibility: public or private,enum=public,enum=private"`
+}
+
+// KnownSpecVersions are the values of the top-level `spec` field that the
+// parser understands. blueprint/v1 is current; package/v1 is its former name.
+var KnownSpecVersions = []string{"blueprint/v1", "package/v1"}
+
+// IsKnownSpecVersion reports whether version names a spec this parser knows.
+func IsKnownSpecVersion(version string) bool {
+	return slices.Contains(KnownSpecVersions, strings.TrimSpace(version))
 }
 
 // AgentCoreRuntime is the agent.annotations.runtime value that opts an agent
