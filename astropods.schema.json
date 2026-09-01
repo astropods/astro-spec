@@ -4,7 +4,7 @@
   "properties": {
     "spec": {
       "type": "string",
-      "description": "Spec version. Must be package/v1"
+      "description": "Spec version. Current is blueprint/v1"
     },
     "name": {
       "type": "string",
