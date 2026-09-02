@@ -8,7 +8,8 @@
     },
     "name": {
       "type": "string",
-      "description": "Unique agent name"
+      "pattern": "^(@[a-z][a-z0-9-]*[a-z0-9]/)?[a-z][a-z0-9-]*[a-z0-9]$",
+      "description": "Unique agent name; may be prefixed with @account/"
     },
     "meta": {
       "properties": {

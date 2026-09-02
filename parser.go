@@ -70,6 +70,9 @@ func ParseSpec(path string) (*AstroSpec, error) {
 	if spec.Name == "" {
 		return nil, fmt.Errorf("agent name is required")
 	}
+	if _, name := SplitAgentName(spec.Name); ValidateName(name) != nil {
+		return nil, fmt.Errorf("name %q is invalid: %w", spec.Name, ValidateName(name))
+	}
 	if spec.Agent.Build == nil && spec.Agent.Image == "" {
 		return nil, fmt.Errorf("agent.build or agent.image is required")
 	}

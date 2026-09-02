@@ -32,3 +32,28 @@ func TestValidateName(t *testing.T) {
 		})
 	}
 }
+
+func TestSplitAgentName(t *testing.T) {
+	tests := []struct {
+		raw         string
+		wantAccount string
+		wantName    string
+	}{
+		{raw: "hackernews-sleuth", wantName: "hackernews-sleuth"},
+		{raw: "@matt/hackernews-sleuth", wantAccount: "matt", wantName: "hackernews-sleuth"},
+		// Without the @ there is no prefix, so the slash belongs to the name and
+		// ValidateName rejects it rather than it reaching a registry path.
+		{raw: "matt/hackernews-sleuth", wantName: "matt/hackernews-sleuth"},
+		{raw: "@matt/", wantName: "@matt/"},
+		{raw: "@/sleuth", wantName: "@/sleuth"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.raw, func(t *testing.T) {
+			account, name := SplitAgentName(tt.raw)
+			if account != tt.wantAccount || name != tt.wantName {
+				t.Errorf("SplitAgentName(%q) = (%q, %q), want (%q, %q)",
+					tt.raw, account, name, tt.wantAccount, tt.wantName)
+			}
+		})
+	}
+}

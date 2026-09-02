@@ -13,7 +13,7 @@ import (
 // AstroSpec represents the complete Astro specification
 type AstroSpec struct {
 	Spec string `json:"spec" yaml:"spec" jsonschema:"description=Spec version. Current is blueprint/v1"`
-	Name string `json:"name" yaml:"name" jsonschema:"description=Unique agent name"`
+	Name string `json:"name" yaml:"name" jsonschema:"description=Unique agent name; may be prefixed with @account/,pattern=^(@[a-z][a-z0-9-]*[a-z0-9]/)?[a-z][a-z0-9-]*[a-z0-9]$"`
 	// Meta is DEPRECATED in full: its fields moved elsewhere but stay accepted so
 	// existing specs still validate. The platform reads meta.description and
 	// meta.tags as a fallback when a spec ships no AGENT.md.
