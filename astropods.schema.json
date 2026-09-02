@@ -4,7 +4,7 @@
   "properties": {
     "spec": {
       "type": "string",
-      "description": "Spec version. MUST be blueprint/v1 (RFC-1 §2)"
+      "description": "Spec version. Current is blueprint/v1"
     },
     "name": {
       "type": "string",

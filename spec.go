@@ -4,30 +4,19 @@ package spec
 
 import (
 	"encoding/json"
+	"slices"
+	"strings"
 
 	"github.com/invopop/jsonschema"
 )
 
 // AstroSpec represents the complete Astro specification
 type AstroSpec struct {
-	// Spec is the spec version identifier. RFC-1 §2 requires blueprint/v1, and the
-	// description below is what editors surface through the `$schema` header — it
-	// previously read "Must be package/v1", the superseded value, which is how the
-	// wrong value kept propagating.
-	//
-	// Deliberately NOT constrained with `enum=blueprint/v1`. RFC-1 §9 rule 1 only
-	// requires "a non-empty string", so an enum would reject documents the spec
-	// declares valid — a breaking change resting on our reading of §2 over §9.
-	// Amend rule 1 first; until then this stays advisory and the CLI can warn.
-	Spec string `json:"spec" yaml:"spec" jsonschema:"description=Spec version. MUST be blueprint/v1 (RFC-1 §2)"`
+	Spec string `json:"spec" yaml:"spec" jsonschema:"description=Spec version. Current is blueprint/v1"`
 	Name string `json:"name" yaml:"name" jsonschema:"description=Unique agent name"`
-	// Meta is DEPRECATED in full — omit it in new specs. Its fields moved
-	// elsewhere but remain ACCEPTED so existing specs still validate: RFC-1 §2.1
-	// marks description/tags/visibility deprecated, not removed, and the platform
-	// still reads meta.description/meta.tags as a fallback when no Agent Card
-	// (AGENT.md) is present. description/tags were deprecated in RFC-1 v1.2 (moved
-	// to Agent Card frontmatter); visibility was deprecated in v1.5 (managed via
-	// the platform UI and API, not the spec).
+	// Meta is DEPRECATED in full: its fields moved elsewhere but stay accepted so
+	// existing specs still validate. The platform reads meta.description and
+	// meta.tags as a fallback when a spec ships no AGENT.md.
 	Meta         Meta                      `json:"meta,omitempty" yaml:"meta,omitempty" jsonschema:"description=DEPRECATED - omit. description/tags moved to the Agent Card (v1.2) but are still accepted and read as a fallback. visibility moved to the platform UI and API (v1.5)"`
 	Agent        Container                 `json:"agent" yaml:"agent" jsonschema:"description=Main agent container"`
 	Models       map[string]Model          `json:"models,omitempty" yaml:"models,omitempty" jsonschema:"description=Model sidecar containers"`
@@ -57,6 +46,15 @@ type Meta struct {
 	// server-side value, and a private default — so setting it here has no
 	// effect. Still accepted so existing specs parse.
 	Visibility string `json:"visibility,omitempty" yaml:"visibility,omitempty" jsonschema:"description=DEPRECATED (v1.5) and ignored - set visibility with ast push --visibility or the platform UI/API,enum=public,enum=private"`
+}
+
+// KnownSpecVersions are the values of the top-level `spec` field that the
+// parser understands. blueprint/v1 is current; package/v1 is its former name.
+var KnownSpecVersions = []string{"blueprint/v1", "package/v1"}
+
+// IsKnownSpecVersion reports whether version names a spec this parser knows.
+func IsKnownSpecVersion(version string) bool {
+	return slices.Contains(KnownSpecVersions, strings.TrimSpace(version))
 }
 
 // AgentCoreRuntime is the agent.annotations.runtime value that opts an agent
