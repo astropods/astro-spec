@@ -146,6 +146,45 @@ func (a *AgentCardAuthor) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
+// Attribution field names, as they appear in AGENT.md frontmatter.
+const (
+	AttributionFieldAuthors    = "authors"
+	AttributionFieldRepository = "repository"
+)
+
+// MissingAttribution reports which attribution fields the card leaves unset.
+// A repository counts only when its URL is a browsable http(s) link.
+func MissingAttribution(card *AgentCard) []string {
+	if card == nil {
+		return []string{AttributionFieldAuthors, AttributionFieldRepository}
+	}
+	var missing []string
+	if !hasNamedAuthor(card.Authors) {
+		missing = append(missing, AttributionFieldAuthors)
+	}
+	if !hasBrowsableRepo(card.Repository) {
+		missing = append(missing, AttributionFieldRepository)
+	}
+	return missing
+}
+
+func hasNamedAuthor(authors []AgentCardAuthor) bool {
+	for _, a := range authors {
+		if strings.TrimSpace(a.Name) != "" || strings.TrimSpace(a.Account) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func hasBrowsableRepo(repo *AgentCardRepo) bool {
+	if repo == nil {
+		return false
+	}
+	url := strings.TrimSpace(repo.URL)
+	return strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://")
+}
+
 // KnownIntegration represents an entry in the known integrations registry.
 type KnownIntegration struct {
 	ID      string   `json:"id"`
