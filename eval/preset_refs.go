@@ -22,7 +22,7 @@ var presetRefOrder = []string{
 	RefUserSentiment,
 }
 
-var presetKeys = map[string]string{
+var presetKeys = map[string]string{ //nolint:gosec // G101 matches RefLeakedCredentials; the value is a preset key
 	RefExposedPII:                  "exposed_pii",
 	RefLeakedCredentials:           "leaked_credentials",
 	RefDisclosedSystemInstructions: "disclosed_system_instructions",
