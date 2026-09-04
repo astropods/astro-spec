@@ -12,17 +12,29 @@
     },
     "meta": {
       "properties": {
+        "description": {
+          "type": "string",
+          "description": "DEPRECATED (v1.2) - moved to Agent Card frontmatter; still accepted and read as a fallback"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "DEPRECATED (v1.2) - moved to Agent Card frontmatter; still accepted and read as a fallback"
+        },
         "visibility": {
           "type": "string",
           "enum": [
             "public",
             "private"
           ],
-          "description": "Agent visibility: public or private"
+          "description": "DEPRECATED (v1.5) and ignored - set visibility with ast push --visibility or the platform UI/API"
         }
       },
       "additionalProperties": false,
-      "type": "object"
+      "type": "object",
+      "description": "DEPRECATED - omit. description/tags moved to the Agent Card (v1.2) but are still accepted and read as a fallback. visibility moved to the platform UI and API (v1.5)"
     },
     "agent": {
       "properties": {

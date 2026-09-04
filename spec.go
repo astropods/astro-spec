@@ -12,9 +12,12 @@ import (
 
 // AstroSpec represents the complete Astro specification
 type AstroSpec struct {
-	Spec         string                    `json:"spec" yaml:"spec" jsonschema:"description=Spec version. Current is blueprint/v1"`
-	Name         string                    `json:"name" yaml:"name" jsonschema:"description=Unique agent name"`
-	Meta         Meta                      `json:"meta,omitempty" yaml:"meta,omitempty"`
+	Spec string `json:"spec" yaml:"spec" jsonschema:"description=Spec version. Current is blueprint/v1"`
+	Name string `json:"name" yaml:"name" jsonschema:"description=Unique agent name"`
+	// Meta is DEPRECATED in full: its fields moved elsewhere but stay accepted so
+	// existing specs still validate. The platform reads meta.description and
+	// meta.tags as a fallback when a spec ships no AGENT.md.
+	Meta         Meta                      `json:"meta,omitempty" yaml:"meta,omitempty" jsonschema:"description=DEPRECATED - omit. description/tags moved to the Agent Card (v1.2) but are still accepted and read as a fallback. visibility moved to the platform UI and API (v1.5)"`
 	Agent        Container                 `json:"agent" yaml:"agent" jsonschema:"description=Main agent container"`
 	Models       map[string]Model          `json:"models,omitempty" yaml:"models,omitempty" jsonschema:"description=Model sidecar containers"`
 	Knowledge    map[string]Knowledge      `json:"knowledge,omitempty" yaml:"knowledge,omitempty" jsonschema:"description=Knowledge store containers"`
@@ -25,8 +28,24 @@ type AstroSpec struct {
 	Dev          *Dev                      `json:"dev,omitempty" yaml:"dev,omitempty" jsonschema:"description=Local development overrides"`
 }
 
+// Meta is DEPRECATED in full. See AstroSpec.Meta. Its fields are retained as
+// accepted-but-deprecated (RFC-1 §2.1 deprecates them; it does not remove them)
+// so existing specs continue to parse and validate.
 type Meta struct {
-	Visibility string `json:"visibility,omitempty" yaml:"visibility,omitempty" jsonschema:"description=Agent visibility: public or private,enum=public,enum=private"`
+	// Description is DEPRECATED as of RFC-1 v1.2: moved to Agent Card (AGENT.md)
+	// frontmatter. Still accepted, and read as a fallback description when no
+	// Agent Card is present, so existing specs keep working.
+	Description string `json:"description,omitempty" yaml:"description,omitempty" jsonschema:"description=DEPRECATED (v1.2) - moved to Agent Card frontmatter; still accepted and read as a fallback"`
+	// Tags is DEPRECATED as of RFC-1 v1.2: moved to Agent Card (AGENT.md)
+	// frontmatter. Still accepted, and read as a fallback when no Agent Card is
+	// present.
+	Tags []string `json:"tags,omitempty" yaml:"tags,omitempty" jsonschema:"description=DEPRECATED (v1.2) - moved to Agent Card frontmatter; still accepted and read as a fallback"`
+	// Visibility is DEPRECATED as of RFC-1 v1.5: "Visibility is managed via the
+	// platform UI and API, not the spec." Nothing reads this field — `ast push`
+	// resolves visibility from --visibility, the blueprint's existing
+	// server-side value, and a private default — so setting it here has no
+	// effect. Still accepted so existing specs parse.
+	Visibility string `json:"visibility,omitempty" yaml:"visibility,omitempty" jsonschema:"description=DEPRECATED (v1.5) and ignored - set visibility with ast push --visibility or the platform UI/API,enum=public,enum=private"`
 }
 
 // KnownSpecVersions are the values of the top-level `spec` field that the

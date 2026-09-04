@@ -18,17 +18,15 @@ func TestParse(t *testing.T) {
 		{
 			name: "minimal valid spec",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 `,
 			wantErr: false,
 			check: func(t *testing.T, s *AstroSpec) {
-				if s.Spec != "package/v1" {
-					t.Errorf("Spec = %q, want %q", s.Spec, "package/v1")
+				if s.Spec != "blueprint/v1" {
+					t.Errorf("Spec = %q, want %q", s.Spec, "blueprint/v1")
 				}
 				if s.Name != "test-agent" {
 					t.Errorf("Name = %q, want %q", s.Name, "test-agent")
@@ -41,10 +39,8 @@ agent:
 		{
 			name: "spec with build config",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: my-agent
-meta:
-  version: 0.1.0
 agent:
   build:
     context: .
@@ -66,10 +62,8 @@ agent:
 		{
 			name: "spec with cloud providers in models and tools",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 models:
@@ -112,10 +106,8 @@ integrations:
 		{
 			name: "spec with knowledge stores - provider mode",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 knowledge:
@@ -159,10 +151,8 @@ knowledge:
 		{
 			name: "spec with knowledge stores - container mode",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 knowledge:
@@ -197,10 +187,8 @@ knowledge:
 		{
 			name: "spec with models - provider mode",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 models:
@@ -234,10 +222,8 @@ models:
 		{
 			name: "spec with models - container mode",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 models:
@@ -282,10 +268,8 @@ models:
 		{
 			name: "spec with ingestion",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 ingestion:
@@ -320,10 +304,8 @@ ingestion:
 		{
 			name: "spec with dev section",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 dev:
@@ -369,10 +351,8 @@ dev:
 		{
 			name: "spec with legacy dev interfaces (string array)",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 dev:
@@ -406,7 +386,7 @@ dev:
 		{
 			name: "spec with custom provider",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
 meta:
   description: test
@@ -460,7 +440,7 @@ providers:
 		{
 			name: "unquoted @ in name gives helpful error",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: @pirates/my-agent
 agent:
   image: test:latest
@@ -550,8 +530,6 @@ func TestParseSpec_Validation(t *testing.T) {
 			name: "missing spec version",
 			yaml: `
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 `,
@@ -560,9 +538,7 @@ agent:
 		{
 			name: "missing agent name",
 			yaml: `
-spec: package/v1
-meta:
-  version: 1.0.0
+spec: blueprint/v1
 agent:
   image: test:latest
 `,
@@ -571,20 +547,16 @@ agent:
 		{
 			name: "missing container config",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 `,
 			wantErr: "agent.build or agent.image is required",
 		},
 		{
 			name: "valid spec passes validation",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 `,
@@ -593,10 +565,8 @@ agent:
 		{
 			name: "knowledge with both provider and container",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 knowledge:
@@ -610,10 +580,8 @@ knowledge:
 		{
 			name: "knowledge with neither provider nor container",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 knowledge:
@@ -624,10 +592,8 @@ knowledge:
 		{
 			name: "model with both provider and container",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 models:
@@ -641,10 +607,8 @@ models:
 		{
 			name: "model with neither provider nor container",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 models:
@@ -655,10 +619,8 @@ models:
 		{
 			name: "valid model with provider",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 models:
@@ -670,10 +632,8 @@ models:
 		{
 			name: "tool with both provider and container",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 integrations:
@@ -687,10 +647,8 @@ integrations:
 		{
 			name: "tool with neither provider nor container",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 integrations:
@@ -701,7 +659,7 @@ integrations:
 		{
 			name: "custom provider without variables rejected",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
 meta:
   description: test
@@ -717,10 +675,8 @@ providers:
 		{
 			name: "valid cloud model provider",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 models:
@@ -732,10 +688,8 @@ models:
 		{
 			name: "valid cloud integration provider",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 integrations:
@@ -748,10 +702,8 @@ integrations:
 		{
 			name: "agent with both image and build rejected",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
   build:
@@ -764,10 +716,8 @@ agent:
 		{
 			name: "integration container build missing context",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 integrations:
@@ -781,10 +731,8 @@ integrations:
 		{
 			name: "integration container build missing dockerfile",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 integrations:
@@ -798,10 +746,8 @@ integrations:
 		{
 			name: "integration container build valid",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 integrations:
@@ -817,10 +763,8 @@ integrations:
 		{
 			name: "integration container invalid gpu runtime",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 integrations:
@@ -835,10 +779,8 @@ integrations:
 		{
 			name: "integration container valid gpu runtime rocm",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 integrations:
@@ -853,10 +795,8 @@ integrations:
 		{
 			name: "knowledge container invalid gpu runtime",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 knowledge:
@@ -871,10 +811,8 @@ knowledge:
 		{
 			name: "knowledge container valid gpu runtime cuda",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 knowledge:
@@ -889,10 +827,8 @@ knowledge:
 		{
 			name: "model with both models and model rejected",
 			yaml: `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 models:
@@ -934,10 +870,8 @@ models:
 
 func TestParseFile(t *testing.T) {
 	yaml := `
-spec: package/v1
+spec: blueprint/v1
 name: file-test
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 `
@@ -965,10 +899,8 @@ func TestParseFile_NotFound(t *testing.T) {
 
 func TestParseString(t *testing.T) {
 	yaml := `
-spec: package/v1
+spec: blueprint/v1
 name: string-test
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 `
@@ -1077,7 +1009,7 @@ func TestSlackConfig(t *testing.T) {
 
 func TestParseSpec_StructuredSlackConfig(t *testing.T) {
 	yaml := `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
 agent:
   image: test:latest
@@ -1127,7 +1059,7 @@ dev:
 
 func TestParseSpec_LegacyInterfacesNoSlackConfig(t *testing.T) {
 	yaml := `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
 agent:
   image: test:latest
@@ -1149,7 +1081,7 @@ dev:
 
 func TestParseSpec_StructuredNoSlackBlock(t *testing.T) {
 	yaml := `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
 agent:
   image: test:latest
@@ -1169,7 +1101,7 @@ dev:
 
 func TestParseSpec_StructuredSlackConfigDefaults(t *testing.T) {
 	yaml := `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
 agent:
   image: test:latest
@@ -1204,7 +1136,7 @@ dev:
 // verbatim via SLACK_CONFIG.
 func TestParseSpec_SlackConfigUnknownKeysPassthrough(t *testing.T) {
 	yaml := `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
 agent:
   image: test:latest
@@ -1319,10 +1251,8 @@ func findSubstring(s, substr string) bool {
 
 func TestParseSpec_GatewayModelAndBooleanConflict(t *testing.T) {
 	yaml := `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
   astro_ai_gateway: true
@@ -1343,10 +1273,8 @@ models:
 
 func TestParseSpec_GatewayModelValid(t *testing.T) {
 	yaml := `
-spec: package/v1
+spec: blueprint/v1
 name: test-agent
-meta:
-  version: 1.0.0
 agent:
   image: test:latest
 models:
