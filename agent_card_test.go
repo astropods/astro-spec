@@ -745,3 +745,64 @@ func TestParseAgentCard_AlwaysMarshalsToValidJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestMissingAttribution(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    []string
+	}{
+		{
+			name:    "author and repository set",
+			content: "---\nauthors:\n  - name: Jane Doe\n    account: janedoe\nrepository: github:astropods/scout\n---\n",
+			want:    nil,
+		},
+		{
+			name:    "account-only author counts",
+			content: "---\nauthors:\n  - account: janedoe\nrepository: https://github.com/astropods/scout\n---\n",
+			want:    nil,
+		},
+		{
+			name:    "empty card misses both",
+			content: "---\ndescription: no attribution\n---\n",
+			want:    []string{"authors", "repository"},
+		},
+		{
+			name:    "empty authors list misses authors",
+			content: "---\nauthors: []\nrepository: github:astropods/scout\n---\n",
+			want:    []string{"authors"},
+		},
+		{
+			name:    "blank author name misses authors",
+			content: "---\nauthors:\n  - name: \"  \"\nrepository: github:astropods/scout\n---\n",
+			want:    []string{"authors"},
+		},
+		{
+			name:    "unbrowsable repository misses repository",
+			content: "---\nauthors:\n  - name: Jane Doe\nrepository: internal-mirror\n---\n",
+			want:    []string{"repository"},
+		},
+		{
+			name:    "ssh repository url misses repository",
+			content: "---\nauthors:\n  - name: Jane Doe\nrepository: ssh://git@github.com/astropods/scout.git\n---\n",
+			want:    []string{"repository"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			card := ParseAgentCard(tt.content)
+			got := MissingAttribution(&card.AgentCard)
+			if strings.Join(got, ",") != strings.Join(tt.want, ",") {
+				t.Errorf("MissingAttribution() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMissingAttribution_NilCardMissesEverything(t *testing.T) {
+	got := MissingAttribution(nil)
+	if strings.Join(got, ",") != "authors,repository" {
+		t.Errorf("MissingAttribution(nil) = %v, want [authors repository]", got)
+	}
+}
