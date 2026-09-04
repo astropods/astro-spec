@@ -3,6 +3,7 @@ package spec
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 var (
@@ -25,6 +26,20 @@ var (
 	// or underscore. No length limit beyond what is practical.
 	varNameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 )
+
+// SplitAgentName separates an optional "@account/" prefix from an agent name.
+// A name without the prefix returns an empty account and the name unchanged.
+func SplitAgentName(raw string) (account, name string) {
+	trimmed, ok := strings.CutPrefix(raw, "@")
+	if !ok {
+		return "", raw
+	}
+	account, name, found := strings.Cut(trimmed, "/")
+	if !found || account == "" || name == "" {
+		return "", raw
+	}
+	return account, name
+}
 
 // ValidateName checks whether name is a valid Astro agent name.
 // Rules:

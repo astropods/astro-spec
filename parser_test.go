@@ -1315,6 +1315,50 @@ func TestDeprecationWarnings_AIGatewayBoolean(t *testing.T) {
 	}
 }
 
+func TestParseSpec_RejectsAnInvalidName(t *testing.T) {
+	body := func(name string) string {
+		return "spec: blueprint/v1\nname: " + name + "\nagent:\n  image: agent:latest\n"
+	}
+	tests := []struct {
+		name     string
+		specName string
+		wantErr  string
+	}{
+		{name: "plain name", specName: "hackernews-sleuth"},
+		{name: "account prefix", specName: `"@matt/hackernews-sleuth"`},
+		// A slash with no @ is not a prefix, so it stays part of the name. Left
+		// unchecked it reached the registry as part of an ECR repository path.
+		{name: "slash without the at sign", specName: "matt/hackernews-sleuth", wantErr: "is invalid"},
+		{name: "uppercase", specName: "Hackernews", wantErr: "is invalid"},
+		{name: "reserved", specName: "astro", wantErr: "reserved"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "astropods.yml")
+			if err := os.WriteFile(path, []byte(body(tt.specName)), 0o600); err != nil {
+				t.Fatal(err)
+			}
+
+			_, err := ParseSpec(path)
+
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Errorf("ParseSpec() error = %v, want nil", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("ParseSpec() = nil error, want one containing %q", tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("ParseSpec() error = %v, want it to contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestIsKnownSpecVersion(t *testing.T) {
 	tests := []struct {
 		version string
