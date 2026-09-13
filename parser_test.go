@@ -1295,13 +1295,13 @@ models:
 	}
 }
 
-func TestValidateInput_SelectDefaultMustBeOption(t *testing.T) {
-	err := validateInput("x", Input{Name: "M", Datatype: "string", DisplayAs: "select", Options: []string{"a", "b"}, Default: "c"})
-	if err == nil || !strings.Contains(err.Error(), "one of the declared options") {
-		t.Fatalf("expected default-not-in-options error, got %v", err)
+func TestInputProblems_SelectDefaultMustBeOption(t *testing.T) {
+	got := inputProblems("x", Input{Name: "M", Datatype: "string", DisplayAs: "select", Options: []string{"a", "b"}, Default: "c"})
+	if len(got) != 1 || !strings.Contains(got[0].Message, "one of the declared options") {
+		t.Fatalf("expected default-not-in-options problem, got %v", got)
 	}
-	if err := validateInput("x", Input{Name: "M", Datatype: "string", DisplayAs: "select", Options: []string{"a", "b"}, Default: "a"}); err != nil {
-		t.Fatalf("valid default should pass, got %v", err)
+	if got := inputProblems("x", Input{Name: "M", Datatype: "string", DisplayAs: "select", Options: []string{"a", "b"}, Default: "a"}); len(got) != 0 {
+		t.Fatalf("valid default should pass, got %v", got)
 	}
 }
 
@@ -1376,5 +1376,139 @@ func TestIsKnownSpecVersion(t *testing.T) {
 				t.Errorf("IsKnownSpecVersion(%q) = %v, want %v", tt.version, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestValidate_ReportsFirstProblemOnly(t *testing.T) {
+	s := &AstroSpec{}
+	problems := Problems(s)
+	if len(problems) < 2 {
+		t.Fatalf("an empty spec should report several problems, got %d: %v", len(problems), problems)
+	}
+	err := Validate(s)
+	if err == nil {
+		t.Fatal("Validate must reject an empty spec")
+	}
+	if err.Error() != problems[0].Message {
+		t.Errorf("Validate should return the first problem %q, got %q", problems[0].Message, err.Error())
+	}
+}
+
+func TestValidate_AcceptsAValidSpec(t *testing.T) {
+	s, err := ParseString(`
+spec: blueprint/v1
+name: my-agent
+agent:
+  image: acme/agent:1
+`)
+	if err != nil {
+		t.Fatalf("minimal valid spec should parse: %v", err)
+	}
+	if err := Validate(s); err != nil {
+		t.Errorf("Validate should accept a spec that Parse accepted: %v", err)
+	}
+	if got := Problems(s); len(got) != 0 {
+		t.Errorf("expected no problems, got %v", got)
+	}
+}
+
+func TestProblems_AreDeterministicAcrossRuns(t *testing.T) {
+	bad := func() Model {
+		return Model{
+			Container: &ContainerConfig{Image: "acme/m:1"},
+			Inputs:    []Input{{Name: "X", Datatype: "bogus"}},
+		}
+	}
+	s := &AstroSpec{
+		Spec:   "blueprint/v1",
+		Name:   "my-agent",
+		Agent:  Container{Image: "acme/agent:1"},
+		Models: map[string]Model{"zebra": bad(), "alpha": bad(), "mango": bad()},
+	}
+	first := Problems(s)
+	if len(first) != 3 {
+		t.Fatalf("expected one problem per model, got %d: %v", len(first), first)
+	}
+	for i := 0; i < 20; i++ {
+		got := Problems(s)
+		for j := range got {
+			if got[j] != first[j] {
+				t.Fatalf("Problems must be order-stable across runs; run %d index %d was %v, first run was %v", i, j, got[j], first[j])
+			}
+		}
+	}
+	if first[0].Field != "models.alpha.inputs[0]" || first[2].Field != "models.zebra.inputs[0]" {
+		t.Errorf("map-keyed sections should be visited in sorted key order, got %q then %q", first[0].Field, first[2].Field)
+	}
+}
+
+func TestAllParseEntryPointsValidate(t *testing.T) {
+	const invalid = "name: my-agent\nagent:\n  image: acme/a:1\n"
+
+	path := filepath.Join(t.TempDir(), "astropods.yml")
+	if err := os.WriteFile(path, []byte(invalid), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for name, parse := range map[string]func() (*AstroSpec, error){
+		"Parse":       func() (*AstroSpec, error) { return Parse([]byte(invalid)) },
+		"ParseString": func() (*AstroSpec, error) { return ParseString(invalid) },
+		"ParseFile":   func() (*AstroSpec, error) { return ParseFile(path) },
+		"ParseSpec":   func() (*AstroSpec, error) { return ParseSpec(path) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			s, err := parse()
+			if err == nil {
+				t.Fatalf("%s must reject a spec missing the spec version", name)
+			}
+			if s != nil {
+				t.Errorf("%s should return a nil spec alongside an error, got %+v", name, s)
+			}
+			if !strings.Contains(err.Error(), "spec version is required") {
+				t.Errorf("%s should report the missing spec version, got %v", name, err)
+			}
+		})
+	}
+}
+
+func TestProblems_LeavesProviderResolutionToTheCaller(t *testing.T) {
+	s, err := ParseString(`
+spec: blueprint/v1
+name: my-agent
+agent:
+  image: acme/a:1
+models:
+  m1:
+    provider: totally-bogus
+`)
+	if err != nil {
+		t.Fatalf("whether a provider names a real backend is not decidable from the spec, so it must parse: %v", err)
+	}
+	if got := Problems(s); len(got) != 0 {
+		t.Errorf("expected no spec-level problems, got %v", got)
+	}
+}
+
+func TestProblems_RejectsAnOutOfScopeCustomProvider(t *testing.T) {
+	_, err := ParseString(`
+spec: blueprint/v1
+name: my-agent
+agent:
+  image: acme/a:1
+providers:
+  vault:
+    scope: [integrations]
+    variables:
+      - name: VAULT_TOKEN
+        datatype: string
+models:
+  m1:
+    provider: vault
+`)
+	if err == nil {
+		t.Fatal("a custom provider used outside its declared scope must be rejected")
+	}
+	if !strings.Contains(err.Error(), `does not allow scope "models"`) {
+		t.Errorf("expected a scope error naming the models section, got %v", err)
 	}
 }

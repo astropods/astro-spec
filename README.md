@@ -52,12 +52,33 @@ if err != nil {
 fmt.Println(s.Name, "→", s.Agent.Image)
 ```
 
-| Function                | Input             | Validation            |
-|-------------------------|-------------------|-----------------------|
-| `Parse(data []byte)`    | in-memory bytes   | syntax only           |
-| `ParseString(s string)` | in-memory string  | syntax only           |
-| `ParseFile(path)`       | file on disk      | syntax only           |
-| `ParseSpec(path)`       | file on disk      | required-field checks |
+| Function                | Input            |
+|-------------------------|------------------|
+| `Parse(data []byte)`    | in-memory bytes  |
+| `ParseString(s string)` | in-memory string |
+| `ParseFile(path)`       | file on disk     |
+| `ParseSpec(path)`       | file on disk     |
+
+Every entry point decodes and then validates, so a returned spec has passed
+the same checks regardless of how it was read. `Parse` is the only
+implementation; the other three delegate to it.
+
+To validate a spec you already hold, for example one decoded from stored
+JSON, call the checks directly:
+
+| Function                      | Reports                                      |
+|-------------------------------|----------------------------------------------|
+| `Validate(s) error`           | the first problem, or nil                    |
+| `Problems(s) []Problem`       | every problem, in a deterministic order      |
+
+`Validate` is a wrapper over `Problems`, so the two cannot disagree. Each
+`Problem` carries the dotted YAML `Field` it concerns alongside its
+`Message`, so a caller can attribute it to a location in the document.
+
+These checks cover what the spec format itself defines. Anything that needs
+outside context stays with the caller: whether a provider names a real
+backend, whether a credential has a value, whether a schedule expression
+parses, or whether a runtime is permitted in a given environment.
 
 ## The Spec
 
@@ -121,7 +142,7 @@ agent reading a knowledge store's connection URL).
 | Area              | Functions                                                                                     |
 |-------------------|-----------------------------------------------------------------------------------------------|
 | **Parsing**       | `Parse`, `ParseString`, `ParseFile`, `ParseSpec`                                              |
-| **Validation**    | `ValidateName`, `ValidateVarName`, `SecretDefaultViolations`, `DeprecationWarnings`           |
+| **Validation**    | `Validate`, `Problems`, `ValidateName`, `ValidateVarName`, `SecretDefaultViolations`, `DeprecationWarnings` |
 | **Env resolution**| `ResolveEnvVars`, `AllCredentialKeys`, `AgentConnectionKeys`, and related credential-key helpers |
 | **Providers**     | `LookupBuiltin`, `GetProvider`, `IsCloudModelProvider`, `IsGatewayModelProvider`, `CredentialKeys` |
 | **JSON Schema**   | `Schema()` — returns the embedded JSON Schema                                                  |

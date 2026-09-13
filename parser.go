@@ -2,6 +2,7 @@ package spec
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"slices"
@@ -20,270 +21,279 @@ var validDisplayAs = map[string]bool{
 	"short-text": true, "long-text": true, "select": true,
 }
 
-// ParseFile reads and parses an spec file from the given path
-func ParseFile(path string) (*AstroSpec, error) {
-	data, err := os.ReadFile(path) //nolint:gosec
-	if err != nil {
-		return nil, fmt.Errorf("failed to read spec file: %w", err)
-	}
+var validScopes = map[string]bool{"models": true, "knowledge": true, "integrations": true}
 
-	return Parse(data)
+var validTriggerTypes = map[string]bool{"schedule": true, "startup": true, "manual": true, "webhook": true}
+
+// Problem is a single validation failure. Field is the dotted YAML path the
+// failure concerns, so callers can attribute it to a location in the document.
+type Problem struct {
+	Field   string
+	Message string
 }
 
-// Parse parses the spec content from bytes
+func (p Problem) Error() string { return p.Message }
+
+// Parse parses and validates spec content. It is the single parse
+// implementation; the path- and string-based entry points delegate here.
 func Parse(data []byte) (*AstroSpec, error) {
-	var spec AstroSpec
-	if err := yaml.Unmarshal(data, &spec); err != nil {
-		if unquotedAtName.Match(data) {
-			return nil, fmt.Errorf("failed to parse spec YAML: the @ character in the name field must be quoted, e.g. name: \"@org/agent\"")
-		}
-		return nil, fmt.Errorf("failed to parse spec YAML: %w", err)
-	}
-
-	return &spec, nil
-}
-
-// ParseString parses the spec content from a string
-func ParseString(content string) (*AstroSpec, error) {
-	return Parse([]byte(content))
-}
-
-// ParseSpec reads and parses an spec file with validation
-func ParseSpec(path string) (*AstroSpec, error) {
-	data, err := os.ReadFile(path) //nolint:gosec
-	if err != nil {
-		return nil, fmt.Errorf("failed to read spec file: %w", err)
-	}
-
-	var spec AstroSpec
-	if err := yaml.Unmarshal(data, &spec); err != nil {
+	var s AstroSpec
+	if err := yaml.Unmarshal(data, &s); err != nil {
 		if unquotedAtName.Match(data) {
 			return nil, fmt.Errorf("failed to parse spec: the @ character in the name field must be quoted, e.g. name: \"@org/agent\"")
 		}
 		return nil, fmt.Errorf("failed to parse spec: %w", err)
 	}
+	if err := Validate(&s); err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
 
-	// Validate required fields
-	if spec.Spec == "" {
-		return nil, fmt.Errorf("spec version is required")
+// ParseString parses and validates the spec content from a string.
+func ParseString(content string) (*AstroSpec, error) {
+	return Parse([]byte(content))
+}
+
+// ParseFile reads, parses, and validates a spec file from the given path.
+func ParseFile(path string) (*AstroSpec, error) {
+	data, err := os.ReadFile(path) //nolint:gosec
+	if err != nil {
+		return nil, fmt.Errorf("failed to read spec file: %w", err)
 	}
-	if spec.Name == "" {
-		return nil, fmt.Errorf("agent name is required")
+	return Parse(data)
+}
+
+// ParseSpec reads, parses, and validates a spec file from the given path.
+func ParseSpec(path string) (*AstroSpec, error) {
+	return ParseFile(path)
+}
+
+// Validate reports the first validation failure in s, or nil when s is valid.
+// It is a thin wrapper over Problems so the two can never disagree.
+func Validate(s *AstroSpec) error {
+	if problems := Problems(s); len(problems) > 0 {
+		return problems[0]
 	}
-	if _, name := SplitAgentName(spec.Name); ValidateName(name) != nil {
-		return nil, fmt.Errorf("name %q is invalid: %w", spec.Name, ValidateName(name))
-	}
-	if spec.Agent.Build == nil && spec.Agent.Image == "" {
-		return nil, fmt.Errorf("agent.build or agent.image is required")
-	}
-	if spec.Agent.Build != nil && spec.Agent.Image != "" {
-		return nil, fmt.Errorf("agent: image and build are mutually exclusive")
+	return nil
+}
+
+// Problems returns every validation failure in s. Use it to report all
+// failures at once; use Validate to fail on the first. Map-keyed sections are
+// visited in sorted key order, so the result is deterministic.
+//
+// Every check here is decidable from the spec alone. Rules that need
+// deploy-time input (credential values, schedule expressions, enabled
+// interfaces) or server policy belong to the caller.
+func Problems(s *AstroSpec) []Problem {
+	var problems []Problem
+	add := func(field, format string, args ...any) {
+		problems = append(problems, Problem{Field: field, Message: fmt.Sprintf(format, args...)})
 	}
 
-	// Validate build configs
-	if spec.Agent.Build != nil {
-		if err := validateBuildConfig("agent.build", spec.Agent.Build); err != nil {
-			return nil, err
-		}
+	if s.Spec == "" {
+		add("spec", "spec version is required")
+	}
+	if s.Name == "" {
+		add("name", "agent name is required")
+	} else if _, name := SplitAgentName(s.Name); ValidateName(name) != nil {
+		add("name", "name %q is invalid: %v", s.Name, ValidateName(name))
 	}
 
-	// Validate top-level inputs
-	for name, input := range spec.Inputs {
-		if err := validateInput(fmt.Sprintf("inputs.%s", name), input); err != nil {
-			return nil, err
-		}
+	if s.Agent.Build == nil && s.Agent.Image == "" {
+		add("agent", "agent.build or agent.image is required")
+	}
+	if s.Agent.Build != nil && s.Agent.Image != "" {
+		add("agent", "agent: image and build are mutually exclusive")
+	}
+	if s.Agent.Build != nil {
+		problems = append(problems, buildProblems("agent.build", s.Agent.Build)...)
 	}
 
-	// Validate agent inputs
-	for i, input := range spec.Agent.Inputs {
-		if err := validateInput(fmt.Sprintf("agent.inputs[%d]", i), input); err != nil {
-			return nil, err
-		}
+	for _, key := range slices.Sorted(maps.Keys(s.Inputs)) {
+		problems = append(problems, inputProblems(fmt.Sprintf("inputs.%s", key), s.Inputs[key])...)
+	}
+	for i, input := range s.Agent.Inputs {
+		problems = append(problems, inputProblems(fmt.Sprintf("agent.inputs[%d]", i), input)...)
 	}
 
-	// Validate custom providers
-	validScopeValues := map[string]bool{"models": true, "knowledge": true, "integrations": true}
-	for name, provider := range spec.Providers {
+	for _, name := range slices.Sorted(maps.Keys(s.Providers)) {
+		provider := s.Providers[name]
 		if len(provider.Scope) == 0 {
-			return nil, fmt.Errorf("providers.%s: scope is required and must contain at least one of: models, knowledge, integrations", name)
+			add(fmt.Sprintf("providers.%s.scope", name),
+				"providers.%s: scope is required and must contain at least one of: models, knowledge, integrations", name)
 		}
-		for _, s := range provider.Scope {
-			if !validScopeValues[s] {
-				return nil, fmt.Errorf("providers.%s: invalid scope value %q (must be one of: models, knowledge, integrations)", name, s)
+		for _, scope := range provider.Scope {
+			if !validScopes[scope] {
+				add(fmt.Sprintf("providers.%s.scope", name),
+					"providers.%s: invalid scope value %q (must be one of: models, knowledge, integrations)", name, scope)
 			}
 		}
 		if len(provider.Variables) == 0 {
-			return nil, fmt.Errorf("providers.%s: variables is required and must contain at least one entry", name)
+			add(fmt.Sprintf("providers.%s.variables", name),
+				"providers.%s: variables is required and must contain at least one entry", name)
 		}
 		for i, v := range provider.Variables {
-			if err := validateInput(fmt.Sprintf("providers.%s.variables[%d]", name, i), v); err != nil {
-				return nil, err
-			}
+			problems = append(problems, inputProblems(fmt.Sprintf("providers.%s.variables[%d]", name, i), v)...)
 		}
 	}
 
-	// Validate knowledge entries
-	for name, k := range spec.Knowledge {
+	for _, name := range slices.Sorted(maps.Keys(s.Knowledge)) {
+		k := s.Knowledge[name]
 		if k.Provider != "" && k.Container != nil {
-			return nil, fmt.Errorf("knowledge %q: provider and container are mutually exclusive", name)
+			add(fmt.Sprintf("knowledge.%s", name), "knowledge %q: provider and container are mutually exclusive", name)
 		}
 		if k.Provider == "" && k.Container == nil {
-			return nil, fmt.Errorf("knowledge %q: either provider or container is required", name)
+			add(fmt.Sprintf("knowledge.%s", name), "knowledge %q: either provider or container is required", name)
 		}
-		// Validate custom provider scope
 		if k.Provider != "" {
-			if cp, ok := spec.Providers[k.Provider]; ok {
-				if !scopeContains(cp.Scope, "knowledge") {
-					return nil, fmt.Errorf("knowledge %q: provider %q does not allow scope %q", name, k.Provider, "knowledge")
-				}
-			}
+			problems = append(problems, scopeProblems(s, "knowledge", name, k.Provider)...)
 		}
-		if k.Container != nil && k.Container.Build != nil {
-			if err := validateBuildConfig(fmt.Sprintf("knowledge.%s.container.build", name), k.Container.Build); err != nil {
-				return nil, err
-			}
-		}
-		if k.Container != nil && k.Container.GPU != nil {
-			if k.Container.GPU.Runtime != "" && k.Container.GPU.Runtime != "cuda" && k.Container.GPU.Runtime != "rocm" {
-				return nil, fmt.Errorf("knowledge.%s.container.gpu.runtime: must be one of cuda or rocm", name)
-			}
-		}
+		problems = append(problems, containerProblems(fmt.Sprintf("knowledge.%s", name), k.Container)...)
 		for i, input := range k.Inputs {
-			if err := validateInput(fmt.Sprintf("knowledge.%s.inputs[%d]", name, i), input); err != nil {
-				return nil, err
-			}
+			problems = append(problems, inputProblems(fmt.Sprintf("knowledge.%s.inputs[%d]", name, i), input)...)
 		}
 	}
 
-	// Validate model entries
-	usesGatewayModel := false
-	for name, m := range spec.Models {
+	for _, name := range slices.Sorted(maps.Keys(s.Models)) {
+		m := s.Models[name]
 		if m.Provider != "" && m.Container != nil {
-			return nil, fmt.Errorf("model %q: provider and container are mutually exclusive", name)
+			add(fmt.Sprintf("models.%s", name), "model %q: provider and container are mutually exclusive", name)
 		}
 		if m.Provider == "" && m.Container == nil {
-			return nil, fmt.Errorf("model %q: either provider or container is required", name)
+			add(fmt.Sprintf("models.%s", name), "model %q: either provider or container is required", name)
 		}
 		if len(m.Models) > 0 && m.Model != "" {
-			return nil, fmt.Errorf("model %q: models and model are mutually exclusive", name)
+			add(fmt.Sprintf("models.%s", name), "model %q: models and model are mutually exclusive", name)
 		}
-		if IsGatewayModelProvider(m.Provider) {
-			usesGatewayModel = true
-			// Gateway models declare selectable options via `models`; the deployer
-			// picks one at deploy time. A single `model` is treated as one option.
-		}
-		// Validate custom provider scope
 		if m.Provider != "" {
-			if cp, ok := spec.Providers[m.Provider]; ok {
-				if !scopeContains(cp.Scope, "models") {
-					return nil, fmt.Errorf("model %q: provider %q does not allow scope %q", name, m.Provider, "models")
-				}
-			}
+			problems = append(problems, scopeProblems(s, "models", name, m.Provider)...)
 		}
-		if m.Container != nil && m.Container.Build != nil {
-			if err := validateBuildConfig(fmt.Sprintf("models.%s.container.build", name), m.Container.Build); err != nil {
-				return nil, err
-			}
-		}
-		if m.Container != nil && m.Container.GPU != nil {
-			if m.Container.GPU.Runtime != "" && m.Container.GPU.Runtime != "cuda" && m.Container.GPU.Runtime != "rocm" {
-				return nil, fmt.Errorf("models.%s.container.gpu.runtime: must be one of cuda or rocm", name)
-			}
-		}
+		problems = append(problems, containerProblems(fmt.Sprintf("models.%s", name), m.Container)...)
 		for i, input := range m.Inputs {
-			if err := validateInput(fmt.Sprintf("models.%s.inputs[%d]", name, i), input); err != nil {
-				return nil, err
-			}
+			problems = append(problems, inputProblems(fmt.Sprintf("models.%s.inputs[%d]", name, i), input)...)
 		}
 	}
 
 	// The deprecated agent.astro_ai_gateway boolean and a provider: gateway model
 	// both enable the gateway; requiring exactly one keeps enablement unambiguous.
-	if spec.Agent.AIGateway && usesGatewayModel {
-		return nil, fmt.Errorf("agent.astro_ai_gateway and a model with provider: %q are mutually exclusive; use the gateway model entry", GatewayProviderName)
+	if s.Agent.AIGateway && slices.ContainsFunc(slices.Collect(maps.Values(s.Models)), Model.IsGateway) {
+		add("agent.astro_ai_gateway",
+			"agent.astro_ai_gateway and a model with provider: %q are mutually exclusive; use the gateway model entry",
+			GatewayProviderName)
 	}
 
-	// Validate integration entries
-	for name, t := range spec.Integrations {
+	for _, name := range slices.Sorted(maps.Keys(s.Integrations)) {
+		t := s.Integrations[name]
 		if t.Provider != "" && t.Container != nil {
-			return nil, fmt.Errorf("integration %q: provider and container are mutually exclusive", name)
+			add(fmt.Sprintf("integrations.%s", name), "integration %q: provider and container are mutually exclusive", name)
 		}
 		if t.Provider == "" && t.Container == nil {
-			return nil, fmt.Errorf("integration %q: either provider or container is required", name)
+			add(fmt.Sprintf("integrations.%s", name), "integration %q: either provider or container is required", name)
 		}
-		// Validate custom provider scope
 		if t.Provider != "" {
-			if cp, ok := spec.Providers[t.Provider]; ok {
-				if !scopeContains(cp.Scope, "integrations") {
-					return nil, fmt.Errorf("integration %q: provider %q does not allow scope %q", name, t.Provider, "integrations")
-				}
-			}
+			problems = append(problems, scopeProblems(s, "integrations", name, t.Provider)...)
 		}
-		if t.Container != nil && t.Container.Build != nil {
-			if err := validateBuildConfig(fmt.Sprintf("integrations.%s.container.build", name), t.Container.Build); err != nil {
-				return nil, err
-			}
-		}
-		if t.Container != nil && t.Container.GPU != nil {
-			if t.Container.GPU.Runtime != "" && t.Container.GPU.Runtime != "cuda" && t.Container.GPU.Runtime != "rocm" {
-				return nil, fmt.Errorf("integrations.%s.container.gpu.runtime: must be one of cuda or rocm", name)
-			}
-		}
+		problems = append(problems, containerProblems(fmt.Sprintf("integrations.%s", name), t.Container)...)
 		for i, input := range t.Inputs {
-			if err := validateInput(fmt.Sprintf("integrations.%s.inputs[%d]", name, i), input); err != nil {
-				return nil, err
-			}
+			problems = append(problems, inputProblems(fmt.Sprintf("integrations.%s.inputs[%d]", name, i), input)...)
 		}
 	}
 
-	// Validate ingestion entries
-	validTriggerTypes := map[string]bool{"schedule": true, "startup": true, "manual": true, "webhook": true}
-	for name, ing := range spec.Ingestion {
+	for _, name := range slices.Sorted(maps.Keys(s.Ingestion)) {
+		ing := s.Ingestion[name]
 		if !validTriggerTypes[ing.Trigger.Type] {
-			return nil, fmt.Errorf("ingestion.%s.trigger.type: must be one of schedule, startup, manual, webhook", name)
+			add(fmt.Sprintf("ingestion.%s.trigger.type", name),
+				"ingestion.%s.trigger.type: must be one of schedule, startup, manual, webhook", name)
 		}
 		if ing.Container.Build != nil {
-			if err := validateBuildConfig(fmt.Sprintf("ingestion.%s.container.build", name), ing.Container.Build); err != nil {
-				return nil, err
-			}
+			problems = append(problems, buildProblems(fmt.Sprintf("ingestion.%s.container.build", name), ing.Container.Build)...)
 		}
 		for i, input := range ing.Inputs {
-			if err := validateInput(fmt.Sprintf("ingestion.%s.inputs[%d]", name, i), input); err != nil {
-				return nil, err
-			}
+			problems = append(problems, inputProblems(fmt.Sprintf("ingestion.%s.inputs[%d]", name, i), input)...)
 		}
 	}
 
-	return &spec, nil
+	return problems
 }
 
-func validateInput(path string, input Input) error {
+// containerProblems validates a sidecar container. A nil container is the
+// provider-backed form and has nothing to check.
+func containerProblems(path string, c *ContainerConfig) []Problem {
+	if c == nil {
+		return nil
+	}
+	var problems []Problem
+	if c.Build != nil {
+		problems = append(problems, buildProblems(path+".container.build", c.Build)...)
+	}
+	if c.GPU != nil && c.GPU.Runtime != "" && c.GPU.Runtime != "cuda" && c.GPU.Runtime != "rocm" {
+		problems = append(problems, Problem{
+			Field:   path + ".container.gpu.runtime",
+			Message: fmt.Sprintf("%s.container.gpu.runtime: must be one of cuda or rocm", path),
+		})
+	}
+	return problems
+}
+
+// scopeProblems checks that a custom provider declares the section that
+// references it. Whether a non-custom provider names a real backend is not
+// decidable from the spec, so it belongs to the caller.
+func scopeProblems(s *AstroSpec, section, entry, provider string) []Problem {
+	custom, ok := s.Providers[provider]
+	if !ok || scopeContains(custom.Scope, section) {
+		return nil
+	}
+	return []Problem{{
+		Field:   fmt.Sprintf("%s.%s.provider", section, entry),
+		Message: fmt.Sprintf("%s %q: provider %q does not allow scope %q", sectionNoun(section), entry, provider, section),
+	}}
+}
+
+// sectionNoun maps a YAML section name to the singular noun used in messages.
+func sectionNoun(section string) string {
+	switch section {
+	case "models":
+		return "model"
+	case "integrations":
+		return "integration"
+	default:
+		return section
+	}
+}
+
+func inputProblems(path string, input Input) []Problem {
+	var problems []Problem
+	add := func(format string, args ...any) {
+		problems = append(problems, Problem{Field: path, Message: fmt.Sprintf(format, args...)})
+	}
 	if input.Name == "" {
-		return fmt.Errorf("%s: name is required", path)
+		add("%s: name is required", path)
 	}
 	if !validDatatypes[input.Datatype] {
-		return fmt.Errorf("%s: datatype must be one of string, boolean, number, array, object (got %q)", path, input.Datatype)
+		add("%s: datatype must be one of string, boolean, number, array, object (got %q)", path, input.Datatype)
 	}
 	if input.DisplayAs != "" && !validDisplayAs[input.DisplayAs] {
-		return fmt.Errorf("%s: display-as must be one of short-text, long-text, select (got %q)", path, input.DisplayAs)
+		add("%s: display-as must be one of short-text, long-text, select (got %q)", path, input.DisplayAs)
 	}
 	if input.DisplayAs == "select" && len(input.Options) == 0 {
-		return fmt.Errorf("%s: options must be present and non-empty when display-as is select", path)
+		add("%s: options must be present and non-empty when display-as is select", path)
 	}
 	if input.DisplayAs == "select" && input.Default != "" && !slices.Contains(input.Options, input.Default) {
-		return fmt.Errorf("%s: default %q must be one of the declared options", path, input.Default)
+		add("%s: default %q must be one of the declared options", path, input.Default)
 	}
-	return nil
+	return problems
 }
 
-func validateBuildConfig(path string, b *BuildConfig) error {
+func buildProblems(path string, b *BuildConfig) []Problem {
+	var problems []Problem
 	if b.Context == "" {
-		return fmt.Errorf("%s.context is required", path)
+		problems = append(problems, Problem{Field: path + ".context", Message: fmt.Sprintf("%s.context is required", path)})
 	}
 	if b.Dockerfile == "" {
-		return fmt.Errorf("%s.dockerfile is required", path)
+		problems = append(problems, Problem{Field: path + ".dockerfile", Message: fmt.Sprintf("%s.dockerfile is required", path)})
 	}
-	return nil
+	return problems
 }
 
 // SecretDefaultViolations returns the names of all secret inputs that still
@@ -344,10 +354,5 @@ func DeprecationWarnings(s *AstroSpec) []string {
 }
 
 func scopeContains(scope []string, value string) bool {
-	for _, s := range scope {
-		if s == value {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(scope, value)
 }
