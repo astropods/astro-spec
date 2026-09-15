@@ -55,6 +55,12 @@ func ParseSpec(path string) (*AstroSpec, error) {
 		return nil, fmt.Errorf("failed to read spec file: %w", err)
 	}
 
+	return ParseSpecBytes(data)
+}
+
+// ParseSpecBytes applies ParseSpec's validation to content already in memory,
+// for a spec that is generated rather than read from a file.
+func ParseSpecBytes(data []byte) (*AstroSpec, error) {
 	var spec AstroSpec
 	if err := yaml.Unmarshal(data, &spec); err != nil {
 		if unquotedAtName.Match(data) {
