@@ -280,28 +280,14 @@ func (t Integration) DeploysContainer(customProviders map[string]CustomProvider)
 	return t.Provider != "" && !IsCloudIntegrationProvider(t.Provider)
 }
 
-// GPUConfig is a scheduling hint declaring that a container needs GPU resources.
-// VRAM (e.g. "24Gi") tells the server how much GPU memory the workload needs.
-// Runtime is "cuda" (default) or "rocm".
-type GPUConfig struct {
-	VRAM    string `json:"vram,omitempty" yaml:"vram,omitempty" jsonschema:"description=GPU memory required (e.g. 24Gi)"`
-	Runtime string `json:"runtime,omitempty" yaml:"runtime,omitempty" jsonschema:"description=GPU runtime,enum=cuda,enum=rocm"`
-}
-
 type ContainerConfig struct {
 	Image       string            `json:"image,omitempty" yaml:"image,omitempty"`
 	Build       *BuildConfig      `json:"build,omitempty" yaml:"build,omitempty"`
-	GPU         *GPUConfig        `json:"gpu,omitempty" yaml:"gpu,omitempty"`
 	Persistent  bool              `json:"-" yaml:"-"` // derived; set by ResolvedContainer
 	Port        int               `json:"port,omitempty" yaml:"port,omitempty"`
 	Volume      string            `json:"volume,omitempty" yaml:"volume,omitempty" jsonschema:"description=Mount path for persistent data volume inside the container"`
 	Environment map[string]string `json:"environment,omitempty" yaml:"environment,omitempty"`
 	Healthcheck *Healthcheck      `json:"healthcheck,omitempty" yaml:"healthcheck,omitempty"`
-}
-
-// HasGPU returns true when the container requires GPU resources.
-func (c ContainerConfig) HasGPU() bool {
-	return c.GPU != nil
 }
 
 // Dev provides local development overrides read by `astro dev`.

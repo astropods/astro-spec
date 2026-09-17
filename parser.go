@@ -143,11 +143,6 @@ func ParseSpec(path string) (*AstroSpec, error) {
 				return nil, err
 			}
 		}
-		if k.Container != nil && k.Container.GPU != nil {
-			if k.Container.GPU.Runtime != "" && k.Container.GPU.Runtime != "cuda" && k.Container.GPU.Runtime != "rocm" {
-				return nil, fmt.Errorf("knowledge.%s.container.gpu.runtime: must be one of cuda or rocm", name)
-			}
-		}
 		for i, input := range k.Inputs {
 			if err := validateInput(fmt.Sprintf("knowledge.%s.inputs[%d]", name, i), input); err != nil {
 				return nil, err
@@ -185,11 +180,6 @@ func ParseSpec(path string) (*AstroSpec, error) {
 				return nil, err
 			}
 		}
-		if m.Container != nil && m.Container.GPU != nil {
-			if m.Container.GPU.Runtime != "" && m.Container.GPU.Runtime != "cuda" && m.Container.GPU.Runtime != "rocm" {
-				return nil, fmt.Errorf("models.%s.container.gpu.runtime: must be one of cuda or rocm", name)
-			}
-		}
 		for i, input := range m.Inputs {
 			if err := validateInput(fmt.Sprintf("models.%s.inputs[%d]", name, i), input); err != nil {
 				return nil, err
@@ -222,11 +212,6 @@ func ParseSpec(path string) (*AstroSpec, error) {
 		if t.Container != nil && t.Container.Build != nil {
 			if err := validateBuildConfig(fmt.Sprintf("integrations.%s.container.build", name), t.Container.Build); err != nil {
 				return nil, err
-			}
-		}
-		if t.Container != nil && t.Container.GPU != nil {
-			if t.Container.GPU.Runtime != "" && t.Container.GPU.Runtime != "cuda" && t.Container.GPU.Runtime != "rocm" {
-				return nil, fmt.Errorf("integrations.%s.container.gpu.runtime: must be one of cuda or rocm", name)
 			}
 		}
 		for i, input := range t.Inputs {
