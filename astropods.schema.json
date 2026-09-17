@@ -269,24 +269,6 @@
                   "dockerfile"
                 ]
               },
-              "gpu": {
-                "properties": {
-                  "vram": {
-                    "type": "string",
-                    "description": "GPU memory required (e.g. 24Gi)"
-                  },
-                  "runtime": {
-                    "type": "string",
-                    "enum": [
-                      "cuda",
-                      "rocm"
-                    ],
-                    "description": "GPU runtime"
-                  }
-                },
-                "additionalProperties": false,
-                "type": "object"
-              },
               "port": {
                 "type": "integer"
               },
@@ -449,24 +431,6 @@
                   "dockerfile"
                 ]
               },
-              "gpu": {
-                "properties": {
-                  "vram": {
-                    "type": "string",
-                    "description": "GPU memory required (e.g. 24Gi)"
-                  },
-                  "runtime": {
-                    "type": "string",
-                    "enum": [
-                      "cuda",
-                      "rocm"
-                    ],
-                    "description": "GPU runtime"
-                  }
-                },
-                "additionalProperties": false,
-                "type": "object"
-              },
               "port": {
                 "type": "integer"
               },
@@ -628,24 +592,6 @@
                   "context",
                   "dockerfile"
                 ]
-              },
-              "gpu": {
-                "properties": {
-                  "vram": {
-                    "type": "string",
-                    "description": "GPU memory required (e.g. 24Gi)"
-                  },
-                  "runtime": {
-                    "type": "string",
-                    "enum": [
-                      "cuda",
-                      "rocm"
-                    ],
-                    "description": "GPU runtime"
-                  }
-                },
-                "additionalProperties": false,
-                "type": "object"
               },
               "port": {
                 "type": "integer"
@@ -947,24 +893,6 @@
                   "context",
                   "dockerfile"
                 ]
-              },
-              "gpu": {
-                "properties": {
-                  "vram": {
-                    "type": "string",
-                    "description": "GPU memory required (e.g. 24Gi)"
-                  },
-                  "runtime": {
-                    "type": "string",
-                    "enum": [
-                      "cuda",
-                      "rocm"
-                    ],
-                    "description": "GPU runtime"
-                  }
-                },
-                "additionalProperties": false,
-                "type": "object"
               },
               "port": {
                 "type": "integer"

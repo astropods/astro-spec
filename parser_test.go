@@ -231,9 +231,6 @@ models:
     container:
       image: my-model:latest
       port: 8000
-      gpu:
-        vram: 24Gi
-        runtime: cuda
 `,
 			wantErr: false,
 			check: func(t *testing.T, s *AstroSpec) {
@@ -250,18 +247,8 @@ models:
 				if model.Container.Image != "my-model:latest" {
 					t.Errorf("Container.Image = %q, want %q", model.Container.Image, "my-model:latest")
 				}
-				rc := model.ResolvedContainer()
-				if rc.Port != 8000 {
+				if rc := model.ResolvedContainer(); rc.Port != 8000 {
 					t.Errorf("ResolvedContainer().Port = %d, want 8000", rc.Port)
-				}
-				if rc.GPU == nil {
-					t.Fatal("ResolvedContainer().GPU is nil, want non-nil")
-				}
-				if rc.GPU.VRAM != "24Gi" {
-					t.Errorf("ResolvedContainer().GPU.VRAM = %q, want %q", rc.GPU.VRAM, "24Gi")
-				}
-				if rc.GPU.Runtime != "cuda" {
-					t.Errorf("ResolvedContainer().GPU.Runtime = %q, want %q", rc.GPU.Runtime, "cuda")
 				}
 			},
 		},
@@ -756,71 +743,6 @@ integrations:
       build:
         context: .
         dockerfile: Dockerfile
-`,
-			wantErr: "",
-		},
-		// Fix 3: gpu.runtime must be cuda or rocm — integrations and knowledge
-		{
-			name: "integration container invalid gpu runtime",
-			yaml: `
-spec: blueprint/v1
-name: test-agent
-agent:
-  image: test:latest
-integrations:
-  mytool:
-    container:
-      image: tool:latest
-      gpu:
-        runtime: metal
-`,
-			wantErr: "integrations.mytool.container.gpu.runtime: must be one of cuda or rocm",
-		},
-		{
-			name: "integration container valid gpu runtime rocm",
-			yaml: `
-spec: blueprint/v1
-name: test-agent
-agent:
-  image: test:latest
-integrations:
-  mytool:
-    container:
-      image: tool:latest
-      gpu:
-        runtime: rocm
-`,
-			wantErr: "",
-		},
-		{
-			name: "knowledge container invalid gpu runtime",
-			yaml: `
-spec: blueprint/v1
-name: test-agent
-agent:
-  image: test:latest
-knowledge:
-  store:
-    container:
-      image: store:latest
-      gpu:
-        runtime: directx
-`,
-			wantErr: "knowledge.store.container.gpu.runtime: must be one of cuda or rocm",
-		},
-		{
-			name: "knowledge container valid gpu runtime cuda",
-			yaml: `
-spec: blueprint/v1
-name: test-agent
-agent:
-  image: test:latest
-knowledge:
-  store:
-    container:
-      image: store:latest
-      gpu:
-        runtime: cuda
 `,
 			wantErr: "",
 		},
