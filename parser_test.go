@@ -1300,3 +1300,125 @@ func TestIsKnownSpecVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSpecBytes(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr string
+	}{
+		{
+			name: "valid generated spec",
+			yaml: `
+spec: blueprint/v1
+name: weekly-digest
+agent:
+  build:
+    context: .
+    dockerfile: Dockerfile
+  interfaces:
+    messaging: true
+models:
+  default:
+    provider: gateway
+    models: [claude-sonnet-4-6]
+`,
+		},
+		{
+			name: "missing spec version",
+			yaml: `
+name: weekly-digest
+agent:
+  image: test:latest
+`,
+			wantErr: "spec version is required",
+		},
+		{
+			name: "missing name",
+			yaml: `
+spec: blueprint/v1
+agent:
+  image: test:latest
+`,
+			wantErr: "agent name is required",
+		},
+		{
+			name: "invalid name",
+			yaml: `
+spec: blueprint/v1
+name: -bad-name-
+agent:
+  image: test:latest
+`,
+			wantErr: "is invalid",
+		},
+		{
+			name: "neither build nor image",
+			yaml: `
+spec: blueprint/v1
+name: weekly-digest
+agent:
+  interfaces:
+    messaging: true
+`,
+			wantErr: "agent.build or agent.image is required",
+		},
+		{
+			name: "unparseable yaml",
+			yaml: `
+spec: blueprint/v1
+name: weekly-digest
+agent:
+  build:
+   context: .
+    dockerfile: Dockerfile
+`,
+			wantErr: "failed to parse spec",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseSpecBytes([]byte(tt.yaml))
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("ParseSpecBytes() error = %v, want a parsed spec", err)
+				}
+				if got == nil {
+					t.Fatal("ParseSpecBytes() returned no spec and no error")
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("ParseSpecBytes() accepted an invalid spec, want error containing %q", tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("ParseSpecBytes() error = %v, want it to contain %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// ParseSpec is the same validation over a file, so the two must agree.
+func TestParseSpecBytes_MatchesParseSpec(t *testing.T) {
+	const yaml = `
+spec: blueprint/v1
+name: weekly-digest
+agent:
+  image: test:latest
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "astropods.yml")
+	if err := os.WriteFile(path, []byte(yaml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	fromFile, fileErr := ParseSpec(path)
+	fromBytes, bytesErr := ParseSpecBytes([]byte(yaml))
+	if fileErr != nil || bytesErr != nil {
+		t.Fatalf("ParseSpec err = %v, ParseSpecBytes err = %v, want both nil", fileErr, bytesErr)
+	}
+	if fromFile.Name != fromBytes.Name || fromFile.Spec != fromBytes.Spec {
+		t.Errorf("ParseSpec = %+v, ParseSpecBytes = %+v, want the same spec", fromFile, fromBytes)
+	}
+}
