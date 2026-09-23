@@ -4,10 +4,12 @@ package spec
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/invopop/jsonschema"
+	"gopkg.in/yaml.v3"
 )
 
 // AstroSpec represents the complete Astro specification
@@ -26,6 +28,55 @@ type AstroSpec struct {
 	Inputs       map[string]Input          `json:"inputs,omitempty" yaml:"inputs,omitempty" jsonschema:"description=User-supplied inputs injected into every container"`
 	Ingestion    map[string]Ingestion      `json:"ingestion,omitempty" yaml:"ingestion,omitempty" jsonschema:"description=Data ingestion pipelines"`
 	Dev          *Dev                      `json:"dev,omitempty" yaml:"dev,omitempty" jsonschema:"description=Local development overrides"`
+	Sandbox      *Sandbox                  `json:"sandbox,omitempty" yaml:"sandbox,omitempty" jsonschema:"description=Declares that the agent uses a sandbox and what that sandbox contains"`
+}
+
+// Sandbox is RFC-1 section 9. Its presence declares that the agent uses a
+// sandbox; an agent without it gets none.
+type Sandbox struct {
+	Toolchain string            `json:"toolchain" yaml:"toolchain" jsonschema:"description=Compilers and headers: auto or always or never,enum=auto,enum=always,enum=never"`
+	Packages  []string          `json:"packages,omitempty" yaml:"packages,omitempty" jsonschema:"description=Package names from the sandbox's system package repository"`
+	Python    *SandboxPython    `json:"python,omitempty" yaml:"python,omitempty" jsonschema:"description=Python interpreter and PyPI packages"`
+	Node      *SandboxNode      `json:"node,omitempty" yaml:"node,omitempty" jsonschema:"description=Node interpreter and global npm packages"`
+	Env       map[string]string `json:"env,omitempty" yaml:"env,omitempty" jsonschema:"description=Environment variables set for every command the sandbox runs"`
+	Setup     []string          `json:"setup,omitempty" yaml:"setup,omitempty" jsonschema:"description=Shell commands run in order after every field above"`
+}
+
+type SandboxPython struct {
+	Version  string   `json:"version,omitempty" yaml:"version,omitempty" jsonschema:"description=Interpreter version as X.Y"`
+	Packages []string `json:"packages,omitempty" yaml:"packages,omitempty" jsonschema:"description=PyPI package names installed into the workspace"`
+}
+
+type SandboxNode struct {
+	Version  string   `json:"version,omitempty" yaml:"version,omitempty" jsonschema:"description=Major version as X"`
+	Packages []string `json:"packages,omitempty" yaml:"packages,omitempty" jsonschema:"description=npm package names installed globally into the workspace"`
+}
+
+// reservedSandboxKeys are named in RFC-1 section 9.4. yaml.Unmarshal ignores an
+// unknown key, so a spec setting one would otherwise be accepted and silently
+// do nothing.
+var reservedSandboxKeys = []string{"files", "classes", "size", "tools"}
+
+func (s *Sandbox) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.MappingNode {
+		return fmt.Errorf("sandbox: must be a mapping")
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		key := node.Content[i].Value
+		for _, reserved := range reservedSandboxKeys {
+			if key == reserved {
+				return fmt.Errorf("sandbox.%s: reserved, and not part of this spec version", key)
+			}
+		}
+	}
+
+	type plain Sandbox
+	var decoded plain
+	if err := node.Decode(&decoded); err != nil {
+		return err
+	}
+	*s = Sandbox(decoded)
+	return nil
 }
 
 // Meta is DEPRECATED in full. See AstroSpec.Meta. Its fields are retained as
