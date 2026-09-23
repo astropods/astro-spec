@@ -1138,6 +1138,82 @@
       "additionalProperties": false,
       "type": "object",
       "description": "Local development overrides"
+    },
+    "sandbox": {
+      "properties": {
+        "toolchain": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "always",
+            "never"
+          ],
+          "description": "Compilers and headers: auto or always or never"
+        },
+        "packages": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Package names from the sandbox's system package repository"
+        },
+        "python": {
+          "properties": {
+            "version": {
+              "type": "string",
+              "description": "Interpreter version as X.Y"
+            },
+            "packages": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "description": "PyPI package names installed into the workspace"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "description": "Python interpreter and PyPI packages"
+        },
+        "node": {
+          "properties": {
+            "version": {
+              "type": "string",
+              "description": "Major version as X"
+            },
+            "packages": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "description": "npm package names installed globally into the workspace"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "description": "Node interpreter and global npm packages"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object",
+          "description": "Environment variables set for every command the sandbox runs"
+        },
+        "setup": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Shell commands run in order after every field above"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "toolchain"
+      ],
+      "description": "Declares that the agent uses a sandbox and what that sandbox contains"
     }
   },
   "additionalProperties": false,

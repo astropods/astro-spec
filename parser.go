@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -245,7 +246,87 @@ func ParseSpecBytes(data []byte) (*AstroSpec, error) {
 		}
 	}
 
+	if spec.Sandbox != nil {
+		if err := validateSandbox(spec.Sandbox); err != nil {
+			return nil, err
+		}
+	}
+
 	return &spec, nil
+}
+
+// A package name is passed to a package manager as an argument, never through a
+// shell, so the hazard is a name read as a flag rather than as shell syntax.
+// An allow-list cannot work here: npm scopes carry @ and /, PyPI extras carry
+// brackets and commas, and a version pin carries = < > ~.
+var shellSyntaxInPackageName = regexp.MustCompile("[\\s;|&$`()'\"\\\\]")
+
+var (
+	validPythonVersion = regexp.MustCompile(`^[0-9]+\.[0-9]+$`)
+	validNodeVersion   = regexp.MustCompile(`^[0-9]+$`)
+	validEnvKey        = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+)
+
+var validToolchainModes = map[string]bool{"auto": true, "always": true, "never": true}
+
+// validateSandbox applies RFC-1 rules 16 through 20.
+func validateSandbox(s *Sandbox) error {
+	if s.Toolchain == "" {
+		return fmt.Errorf("sandbox.toolchain: required, and must be one of auto, always, never")
+	}
+	if !validToolchainModes[s.Toolchain] {
+		return fmt.Errorf("sandbox.toolchain: must be one of auto, always, never (got %q)", s.Toolchain)
+	}
+
+	if err := validatePackageNames("sandbox.packages", s.Packages); err != nil {
+		return err
+	}
+
+	if s.Python != nil {
+		if s.Python.Version != "" && !validPythonVersion.MatchString(s.Python.Version) {
+			return fmt.Errorf("sandbox.python.version: must be X.Y, e.g. 3.12 (got %q)", s.Python.Version)
+		}
+		if err := validatePackageNames("sandbox.python.packages", s.Python.Packages); err != nil {
+			return err
+		}
+	}
+
+	if s.Node != nil {
+		if s.Node.Version != "" && !validNodeVersion.MatchString(s.Node.Version) {
+			return fmt.Errorf("sandbox.node.version: must be a major version, e.g. 22 (got %q)", s.Node.Version)
+		}
+		if err := validatePackageNames("sandbox.node.packages", s.Node.Packages); err != nil {
+			return err
+		}
+	}
+
+	for key := range s.Env {
+		if !validEnvKey.MatchString(key) {
+			return fmt.Errorf("sandbox.env: %q is not a valid environment variable name", key)
+		}
+	}
+
+	for i, command := range s.Setup {
+		if strings.TrimSpace(command) == "" {
+			return fmt.Errorf("sandbox.setup[%d]: must not be empty", i)
+		}
+	}
+
+	return nil
+}
+
+func validatePackageNames(path string, names []string) error {
+	for i, name := range names {
+		switch {
+		case name == "":
+			return fmt.Errorf("%s[%d]: must not be empty", path, i)
+		case strings.HasPrefix(name, "-"):
+			return fmt.Errorf("%s[%d]: %q would be read as a flag, not a package", path, i, name)
+		case shellSyntaxInPackageName.MatchString(name):
+			return fmt.Errorf("%s[%d]: %q contains whitespace or shell syntax", path, i, name)
+		}
+	}
+	return nil
 }
 
 func validateInput(path string, input Input) error {
