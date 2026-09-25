@@ -1,0 +1,134 @@
+name: Release
+
+# Tags a module version. A Go module release is nothing but an annotated tag,
+# and proxy.golang.org caches a version permanently the first time anyone
+# fetches it, so a mistake cannot be corrected by retagging: it needs a new
+# version. Every check here exists to catch that before the tag is pushed.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to tag, with the leading v (for example v0.4.0)"
+        required: true
+        type: string
+      dry_run:
+        description: "Run every check and report the tag, without pushing it"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    name: Tag ${{ inputs.version }}
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # workflow_dispatch runs from whatever ref is chosen, so a feature branch
+      # would publish unmerged code under a version that cannot be withdrawn.
+      - name: Check the release runs from the default branch
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/${{ github.event.repository.default_branch }}" ]; then
+            echo "::error::Releases run from ${{ github.event.repository.default_branch }}, not $GITHUB_REF."
+            exit 1
+          fi
+          echo "OK: releasing from ${{ github.event.repository.default_branch }}"
+
+      - name: Check the version is a semver tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! printf '%s' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::$VERSION is not vMAJOR.MINOR.PATCH. A Go module version needs the leading v."
+            exit 1
+          fi
+          echo "OK: $VERSION is a well-formed module version"
+
+      - name: Check the tag is not taken
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+            echo "::error::$VERSION already exists. proxy.golang.org caches a version permanently, so pick the next one."
+            exit 1
+          fi
+          echo "OK: $VERSION is unused"
+
+      - name: Check the version moves forward
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          latest="$(git tag --sort=-v:refname | head -1)"
+          if [ -z "$latest" ]; then
+            echo "OK: $VERSION is the first release"
+            exit 0
+          fi
+          highest="$(printf '%s\n%s\n' "$latest" "$VERSION" | sed 's/^v//' | sort -V | tail -1)"
+          if [ "v$highest" != "$VERSION" ] || [ "$latest" = "$VERSION" ]; then
+            echo "::error::$VERSION does not come after $latest"
+            exit 1
+          fi
+          echo "OK: $VERSION comes after $latest"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: go.sum
+
+      # The same gates CI runs on main. A tag is immutable once fetched, so it
+      # is checked here too rather than trusted from the merge that produced it.
+      - name: Verify go.mod is tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Run tests
+        run: go test -race ./...
+
+      # astropods.schema.json is committed and embedded via go:embed, so a stale
+      # copy would ship inside the released module.
+      - name: Check the generated schema is current
+        run: |
+          go generate ./...
+          if ! git diff --exit-code astropods.schema.json; then
+            echo "::error::astropods.schema.json is stale. Run go generate ./... and commit the result."
+            exit 1
+          fi
+          echo "OK: the embedded schema matches the structs"
+
+      - name: Report the tag without pushing
+        if: ${{ inputs.dry_run }}
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "Dry run: every check passed. $VERSION would be tagged at $(git rev-parse --short HEAD)."
+          echo "### Dry run: $VERSION would tag \`$(git rev-parse --short HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tag and push
+        if: ${{ !inputs.dry_run }}
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+          echo "### Released $VERSION at \`$(git rev-parse --short HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Consumers pin it with: go get github.com/astropods/astro-spec@$VERSION" >> "$GITHUB_STEP_SUMMARY"
