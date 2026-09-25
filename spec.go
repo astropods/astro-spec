@@ -346,6 +346,7 @@ type Dev struct {
 	Interfaces *DevInterfaces    `json:"interfaces,omitempty" yaml:"interfaces,omitempty" jsonschema:"description=Local dev configuration for frontend and messaging interfaces"`
 	Schedules  map[string]string `json:"schedules,omitempty" yaml:"schedules,omitempty" jsonschema:"description=Cron schedules for ingestion jobs during dev"`
 	Command    string            `json:"command,omitempty" yaml:"command,omitempty" jsonschema:"description=Start command for the agent (default: bun --watch run start)"`
+	Watch      []string          `json:"watch,omitempty" yaml:"watch,omitempty" jsonschema:"description=Project directories mounted into the agent container for hot reload. Default: [agent]. List every directory your start command imports. Leave out any directory your Dockerfile builds rather than copies (a compiled output directory; a virtual environment; node_modules). Mounting one replaces what the build produced with your host's copy. It is either absent or built for a different platform than the image. A directory you name that does not exist is skipped."`
 	Overrides  *DevOverrides     `json:"overrides,omitempty" yaml:"overrides,omitempty" jsonschema:"description=Image overrides for local dev services"`
 }
 
@@ -580,6 +581,23 @@ func (s *SlackAdapterConfig) UnmarshalJSON(data []byte) error {
 // HasMessagingAdapters reports whether dev messaging adapters are configured.
 func (d *Dev) HasMessagingAdapters() bool {
 	return d != nil && d.Interfaces != nil && d.Interfaces.Messaging != nil && len(d.Interfaces.Messaging.Adapters) > 0
+}
+
+// DefaultWatchDir is the only directory every agent is known to have, so it is
+// what hot reload covers when a spec names nothing.
+const DefaultWatchDir = "agent"
+
+// WatchDirs returns the project directories to mount for hot reload, and
+// DefaultWatchDir when a spec names none.
+//
+// A directory a Dockerfile builds rather than copies must not be listed. The
+// mount replaces what the build produced with the host's copy, which is either
+// absent or built for a different platform than the image.
+func (d *Dev) WatchDirs() []string {
+	if d == nil || len(d.Watch) == 0 {
+		return []string{DefaultWatchDir}
+	}
+	return d.Watch
 }
 
 // MessagingAdapters returns the dev messaging adapter names, or nil.

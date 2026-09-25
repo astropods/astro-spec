@@ -1422,3 +1422,44 @@ agent:
 		t.Errorf("ParseSpec = %+v, ParseSpecBytes = %+v, want the same spec", fromFile, fromBytes)
 	}
 }
+
+func TestDevWatchDirsDefaultsToAgent(t *testing.T) {
+	for name, dev := range map[string]*Dev{
+		"nil dev":           nil,
+		"dev with no watch": {Command: "bun --watch agent/index.ts"},
+		"empty watch":       {Watch: []string{}},
+	} {
+		got := dev.WatchDirs()
+		if len(got) != 1 || got[0] != DefaultWatchDir {
+			t.Errorf("%s: WatchDirs() = %v, want [%s] so an existing agent keeps reloading", name, got, DefaultWatchDir)
+		}
+	}
+}
+
+func TestDevWatchDirsReturnsWhatTheSpecNames(t *testing.T) {
+	dev := &Dev{Watch: []string{"agent", "src"}}
+
+	got := dev.WatchDirs()
+	if len(got) != 2 || got[0] != "agent" || got[1] != "src" {
+		t.Errorf("WatchDirs() = %v, want [agent src]", got)
+	}
+}
+
+func TestParseDevWatchFromYAML(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "astropods.yml")
+	body := "spec: blueprint/v1\nname: probe\nagent:\n  image: alpine:3\ndev:\n  watch: [agent, src, lib]\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := ParseSpec(path)
+	if err != nil {
+		t.Fatalf("ParseSpec: %v", err)
+	}
+
+	got := s.Dev.WatchDirs()
+	if len(got) != 3 || got[2] != "lib" {
+		t.Errorf("WatchDirs() = %v, want the three directories the spec named", got)
+	}
+}

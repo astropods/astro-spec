@@ -1123,6 +1123,13 @@
           "type": "string",
           "description": "Start command for the agent (default: bun --watch run start)"
         },
+        "watch": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "description": "Project directories mounted into the agent container for hot reload. Default: [agent]. List every directory your start command imports. Leave out any directory your Dockerfile builds rather than copies (a compiled output directory; a virtual environment; node_modules). Mounting one replaces what the build produced with your host's copy. It is either absent or built for a different platform than the image. A directory you name that does not exist is skipped."
+        },
         "overrides": {
           "properties": {
             "messagingImage": {
