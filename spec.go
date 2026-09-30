@@ -29,6 +29,18 @@ type AstroSpec struct {
 	Ingestion    map[string]Ingestion      `json:"ingestion,omitempty" yaml:"ingestion,omitempty" jsonschema:"description=Data ingestion pipelines"`
 	Dev          *Dev                      `json:"dev,omitempty" yaml:"dev,omitempty" jsonschema:"description=Local development overrides"`
 	Sandbox      *Sandbox                  `json:"sandbox,omitempty" yaml:"sandbox,omitempty" jsonschema:"description=Declares that the agent uses a sandbox and what that sandbox contains"`
+	Connections  []Connection              `json:"connections,omitempty" yaml:"connections,omitempty" jsonschema:"description=Connections the agent uses as the chatting user, after that user allows it"`
+}
+
+type Connection struct {
+	Provider string   `json:"provider" yaml:"provider" jsonschema:"description=Provider slug, e.g. github"`
+	Scopes   []string `json:"scopes,omitempty" yaml:"scopes,omitempty" jsonschema:"description=Provider scopes the agent needs"`
+	Required *bool    `json:"required,omitempty" yaml:"required,omitempty" jsonschema:"description=Whether the chat is blocked until the user allows this connection. Defaults to true"`
+	Reason   string   `json:"reason" yaml:"reason" jsonschema:"description=Why the agent needs this connection, shown to the user,maxLength=120"`
+}
+
+func (c Connection) IsRequired() bool {
+	return c.Required == nil || *c.Required
 }
 
 // Sandbox is RFC-1 section 9. Its presence declares that the agent uses a

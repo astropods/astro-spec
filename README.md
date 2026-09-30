@@ -76,6 +76,8 @@ An `AstroSpec` describes one agent and its supporting components:
 | `inputs`       | User-supplied inputs injected into every container |
 | `ingestion`    | Data ingestion pipelines                           |
 | `dev`          | Local development overrides                        |
+| `sandbox`      | The agent's sandbox and what it contains           |
+| `connections`  | Accounts the agent uses as the chatting user       |
 
 ### Example
 

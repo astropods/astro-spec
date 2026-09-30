@@ -1221,6 +1221,40 @@
         "toolchain"
       ],
       "description": "Declares that the agent uses a sandbox and what that sandbox contains"
+    },
+    "connections": {
+      "items": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Provider slug"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "description": "Provider scopes the agent needs"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether the chat is blocked until the user allows this connection. Defaults to true"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "Why the agent needs this connection"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider",
+          "reason"
+        ]
+      },
+      "type": "array",
+      "description": "Connections the agent uses as the chatting user"
     }
   },
   "additionalProperties": false,
