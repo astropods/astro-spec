@@ -252,7 +252,42 @@ func ParseSpecBytes(data []byte) (*AstroSpec, error) {
 		}
 	}
 
+	if err := validateConnections(spec.Connections); err != nil {
+		return nil, err
+	}
+
 	return &spec, nil
+}
+
+var validConnectionProvider = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+
+const maxConnectionReasonLength = 120
+
+func validateConnections(connections []Connection) error {
+	seen := make(map[string]bool, len(connections))
+	for i, c := range connections {
+		path := fmt.Sprintf("connections[%d]", i)
+		if !validConnectionProvider.MatchString(c.Provider) {
+			return fmt.Errorf("%s.provider: must be a lowercase provider slug, e.g. github (got %q)", path, c.Provider)
+		}
+		if seen[c.Provider] {
+			return fmt.Errorf("%s.provider: %q is declared more than once", path, c.Provider)
+		}
+		seen[c.Provider] = true
+		reason := strings.TrimSpace(c.Reason)
+		if reason == "" {
+			return fmt.Errorf("%s.reason: required", path)
+		}
+		if n := len([]rune(reason)); n > maxConnectionReasonLength {
+			return fmt.Errorf("%s.reason: must be %d characters or fewer (got %d)", path, maxConnectionReasonLength, n)
+		}
+		for j, scope := range c.Scopes {
+			if strings.TrimSpace(scope) == "" || strings.ContainsAny(scope, " \t\n") {
+				return fmt.Errorf("%s.scopes[%d]: must be a single non-empty scope (got %q)", path, j, scope)
+			}
+		}
+	}
+	return nil
 }
 
 // A package name is passed to a package manager as an argument, never through a
