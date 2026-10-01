@@ -304,7 +304,8 @@ var (
 
 var validToolchainModes = map[string]bool{"auto": true, "always": true, "never": true}
 
-// validateSandbox applies RFC-1 rules 16 through 20.
+var validBrowserNames = map[string]bool{"chromium": true}
+
 func validateSandbox(s *Sandbox) error {
 	if s.Toolchain == "" {
 		return fmt.Errorf("sandbox.toolchain: required, and must be one of auto, always, never")
@@ -332,6 +333,15 @@ func validateSandbox(s *Sandbox) error {
 		}
 		if err := validatePackageNames("sandbox.node.packages", s.Node.Packages); err != nil {
 			return err
+		}
+	}
+
+	if s.Browser != nil {
+		if s.Browser.Name == "" {
+			return fmt.Errorf("sandbox.browser.name: required, and must be chromium")
+		}
+		if !validBrowserNames[s.Browser.Name] {
+			return fmt.Errorf("sandbox.browser.name: must be chromium (got %q)", s.Browser.Name)
 		}
 	}
 

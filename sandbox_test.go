@@ -189,3 +189,42 @@ func TestAToolchainModeOutsideTheSetIsRefused(t *testing.T) {
 		t.Errorf("the error does not list the modes: %v", err)
 	}
 }
+
+func TestABrowserParsesAsAMappingWithAName(t *testing.T) {
+	parsed, err := sandboxSpec(t, "sandbox:\n  toolchain: auto\n  browser:\n    name: chromium\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Sandbox.Browser == nil || parsed.Sandbox.Browser.Name != "chromium" {
+		t.Errorf("browser is %+v, want name chromium", parsed.Sandbox.Browser)
+	}
+}
+
+func TestASandboxWithoutABrowserHasNone(t *testing.T) {
+	parsed, err := sandboxSpec(t, "sandbox:\n  toolchain: auto\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Sandbox.Browser != nil {
+		t.Errorf("a sandbox with no browser key parsed one: %+v", parsed.Sandbox.Browser)
+	}
+}
+
+func TestABrowserThatIsNotAWorkingMappingIsRefused(t *testing.T) {
+	for name, tc := range map[string]struct{ browser, mention string }{
+		"scalar":       {"browser: chromium", "sandbox.browser"},
+		"no name":      {"browser: {}", "sandbox.browser.name"},
+		"unknown name": {"browser:\n    name: firefox", "must be chromium"},
+		"unknown key":  {"browser:\n    name: chromium\n    version: \"1.63\"", "sandbox.browser.version"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := sandboxSpec(t, "sandbox:\n  toolchain: auto\n  "+tc.browser+"\n")
+			if err == nil {
+				t.Fatalf("%q parsed, so the spec would accept a browser the platform cannot provide", tc.browser)
+			}
+			if !strings.Contains(err.Error(), tc.mention) {
+				t.Errorf("the error does not mention %q: %v", tc.mention, err)
+			}
+		})
+	}
+}
