@@ -1200,6 +1200,23 @@
           "type": "object",
           "description": "Node interpreter and global npm packages"
         },
+        "browser": {
+          "properties": {
+            "name": {
+              "type": "string",
+              "enum": [
+                "chromium"
+              ],
+              "description": "Playwright browser name"
+            }
+          },
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "description": "A headless browser already installed in the sandbox"
+        },
         "env": {
           "additionalProperties": {
             "type": "string"

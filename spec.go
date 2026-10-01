@@ -50,8 +50,34 @@ type Sandbox struct {
 	Packages  []string          `json:"packages,omitempty" yaml:"packages,omitempty" jsonschema:"description=Package names from the sandbox's system package repository"`
 	Python    *SandboxPython    `json:"python,omitempty" yaml:"python,omitempty" jsonschema:"description=Python interpreter and PyPI packages"`
 	Node      *SandboxNode      `json:"node,omitempty" yaml:"node,omitempty" jsonschema:"description=Node interpreter and global npm packages"`
+	Browser   *SandboxBrowser   `json:"browser,omitempty" yaml:"browser,omitempty" jsonschema:"description=A headless browser already installed in the sandbox"`
 	Env       map[string]string `json:"env,omitempty" yaml:"env,omitempty" jsonschema:"description=Environment variables set for every command the sandbox runs"`
 	Setup     []string          `json:"setup,omitempty" yaml:"setup,omitempty" jsonschema:"description=Shell commands run in order after every field above"`
+}
+
+type SandboxBrowser struct {
+	Name string `json:"name" yaml:"name" jsonschema:"description=Playwright browser name,enum=chromium"`
+}
+
+var sandboxBrowserKeys = map[string]bool{"name": true}
+
+func (b *SandboxBrowser) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.MappingNode {
+		return fmt.Errorf("sandbox.browser: must be a mapping, e.g. {name: chromium}")
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if key := node.Content[i].Value; !sandboxBrowserKeys[key] {
+			return fmt.Errorf("sandbox.browser.%s: not a key of sandbox.browser", key)
+		}
+	}
+
+	type plain SandboxBrowser
+	var decoded plain
+	if err := node.Decode(&decoded); err != nil {
+		return err
+	}
+	*b = SandboxBrowser(decoded)
+	return nil
 }
 
 type SandboxPython struct {
