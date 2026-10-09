@@ -107,6 +107,9 @@ func ParseSpecBytes(data []byte) (*AstroSpec, error) {
 			return nil, err
 		}
 	}
+	if err := validateSkills(spec.Agent.Skills); err != nil {
+		return nil, err
+	}
 
 	// Validate custom providers
 	validScopeValues := map[string]bool{"models": true, "knowledge": true, "integrations": true}
@@ -257,6 +260,32 @@ func ParseSpecBytes(data []byte) (*AstroSpec, error) {
 	}
 
 	return &spec, nil
+}
+
+var validSkillName = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,127}$`)
+
+// ReservedSkillPrefix starts the skill every agent gets from its name.
+const ReservedSkillPrefix = "agent."
+
+const maxSkillDescriptionLength = 500
+
+func validateSkills(skills []Skill) error {
+	seen := make(map[string]bool, len(skills))
+	for i, s := range skills {
+		path := fmt.Sprintf("agent.skills[%d]", i)
+		switch {
+		case !validSkillName.MatchString(s.Name):
+			return fmt.Errorf("%s.name: %q must be lowercase letters, digits, dots, dashes and underscores, starting with a letter or digit, at most 128 characters", path, s.Name)
+		case strings.HasPrefix(s.Name, ReservedSkillPrefix):
+			return fmt.Errorf("%s.name: %q uses the reserved prefix %q; every agent already has %s<name>", path, s.Name, ReservedSkillPrefix, ReservedSkillPrefix)
+		case seen[s.Name]:
+			return fmt.Errorf("%s.name: %q is listed twice", path, s.Name)
+		case len([]rune(s.Description)) > maxSkillDescriptionLength:
+			return fmt.Errorf("%s.description: must be at most %d characters", path, maxSkillDescriptionLength)
+		}
+		seen[s.Name] = true
+	}
+	return nil
 }
 
 var validConnectionProvider = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)

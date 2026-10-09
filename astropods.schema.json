@@ -187,6 +187,28 @@
           "type": "array",
           "description": "User-supplied inputs injected into the agent container"
         },
+        "skills": {
+          "items": {
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$",
+                "description": "Lowercase letters, digits, dots, dashes and underscores. Starts with a letter or digit. At most 128 characters. Names starting with agent. are reserved"
+              },
+              "description": {
+                "type": "string",
+                "description": "What the agent does with a task for this skill"
+              }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "name"
+            ]
+          },
+          "type": "array",
+          "description": "Skills the agent takes tasks for on the agent mesh. Advertised only when the agent is deployed with the mesh interface. Every agent also has agent.\u003cname\u003e"
+        },
         "annotations": {
           "additionalProperties": {
             "type": "string"
