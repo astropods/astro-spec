@@ -107,7 +107,7 @@ func ParseSpecBytes(data []byte) (*AstroSpec, error) {
 			return nil, err
 		}
 	}
-	if err := validateSkills(spec.Agent.Skills); err != nil {
+	if err := ValidateSkills(spec.Agent.Skills); err != nil {
 		return nil, err
 	}
 
@@ -269,7 +269,9 @@ const ReservedSkillPrefix = "agent."
 
 const maxSkillDescriptionLength = 500
 
-func validateSkills(skills []Skill) error {
+// ValidateSkills applies the agent.skills rules ParseSpec enforces, for a spec
+// that arrives already decoded.
+func ValidateSkills(skills []Skill) error {
 	seen := make(map[string]bool, len(skills))
 	for i, s := range skills {
 		path := fmt.Sprintf("agent.skills[%d]", i)
