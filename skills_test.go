@@ -124,3 +124,13 @@ func TestSchema_AgentSkillsDeclareTheNamePatternAndAWholeDescription(t *testing.
 		t.Errorf("agent.skills[].name description %q is cut short; a comma in the tag truncates it", desc)
 	}
 }
+
+func TestValidateSkillsAppliesTheParseRulesToADecodedSpec(t *testing.T) {
+	if err := ValidateSkills([]Skill{{Name: "github.issue.investigate"}}); err != nil {
+		t.Errorf("a valid skill was refused: %v", err)
+	}
+	err := ValidateSkills([]Skill{{Name: "agent.probe"}})
+	if err == nil || !strings.Contains(err.Error(), `uses the reserved prefix "agent."`) {
+		t.Errorf("ValidateSkills(agent.probe) = %v, want the reserved-prefix error a server gets for a spec it decoded itself", err)
+	}
+}
