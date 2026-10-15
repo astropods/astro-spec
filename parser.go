@@ -177,6 +177,18 @@ func ParseSpecBytes(data []byte) (*AstroSpec, error) {
 			// Gateway models declare selectable options via `models`; the deployer
 			// picks one at deploy time. A single `model` is treated as one option.
 		}
+		switch m.Selection {
+		case "", ModelSelectionDeploy:
+		case ModelSelectionLive:
+			if _, cloud := GetCloudModelCredentials(m.Provider); !cloud && !m.IsGateway() {
+				return nil, fmt.Errorf("model %q: selection %q requires provider: %q or a cloud model provider", name, ModelSelectionLive, GatewayProviderName)
+			}
+			if len(m.ResolvedModels()) == 0 {
+				return nil, fmt.Errorf("model %q: selection %q requires a models list", name, ModelSelectionLive)
+			}
+		default:
+			return nil, fmt.Errorf("model %q: selection must be %q or %q, got %q", name, ModelSelectionDeploy, ModelSelectionLive, m.Selection)
+		}
 		// Validate custom provider scope
 		if m.Provider != "" {
 			if cp, ok := spec.Providers[m.Provider]; ok {
