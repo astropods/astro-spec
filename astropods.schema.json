@@ -391,6 +391,14 @@
             },
             "type": "array",
             "description": "User-supplied inputs injected into the model container"
+          },
+          "selection": {
+            "type": "string",
+            "enum": [
+              "deploy",
+              "live"
+            ],
+            "description": "When the model is chosen: deploy (default) picks one at deploy time; live also lets chat users switch between the listed models. live needs provider gateway or a cloud model provider"
           }
         },
         "additionalProperties": false,

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -1461,5 +1462,54 @@ func TestParseDevWatchFromYAML(t *testing.T) {
 	got := s.Dev.WatchDirs()
 	if len(got) != 3 || got[2] != "lib" {
 		t.Errorf("WatchDirs() = %v, want the three directories the spec named", got)
+	}
+}
+
+func TestParseSpec_ModelSelection(t *testing.T) {
+	tests := []struct {
+		name    string
+		models  string
+		wantErr string
+	}{
+		{name: "unset", models: "  default:\n    provider: gateway\n    models: [a]\n"},
+		{name: "deploy", models: "  default:\n    provider: gateway\n    models: [a]\n    selection: deploy\n"},
+		{name: "live gateway", models: "  default:\n    provider: gateway\n    models: [a, b]\n    selection: live\n"},
+		{name: "live single model", models: "  default:\n    provider: gateway\n    model: a\n    selection: live\n"},
+		{name: "live byok", models: "  claude:\n    provider: anthropic\n    models: [a]\n    selection: live\n"},
+		{name: "live byok beside gateway", models: "  claude:\n    provider: anthropic\n    models: [a]\n    selection: live\n  default:\n    provider: gateway\n    models: [b]\n    selection: live\n"},
+		{name: "live container", models: "  local:\n    container:\n      image: vllm:latest\n    models: [a]\n    selection: live\n", wantErr: `requires provider: "gateway" or a cloud model provider`},
+		{name: "live custom provider", models: "  mine:\n    provider: mine\n    models: [a]\n    selection: live\n", wantErr: "or a cloud model provider"},
+		{name: "live without models", models: "  default:\n    provider: gateway\n    selection: live\n", wantErr: "requires a models list"},
+		{name: "unknown", models: "  default:\n    provider: gateway\n    models: [a]\n    selection: chat\n", wantErr: `got "chat"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			yaml := "spec: blueprint/v1\nname: test-agent\nagent:\n  image: test:latest\nmodels:\n" + tt.models
+			_, err := ParseSpecBytes([]byte(yaml))
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestLiveModels(t *testing.T) {
+	s := &AstroSpec{Models: map[string]Model{
+		"zeta":  {Provider: "gateway", Models: []string{"z1"}, Selection: ModelSelectionLive},
+		"alpha": {Provider: "gateway", Models: []string{"a2", "a1"}, Selection: ModelSelectionLive},
+		"fixed": {Provider: "gateway", Models: []string{"f1"}},
+	}}
+	want := []ModelChoice{{"alpha", "a2"}, {"alpha", "a1"}, {"zeta", "z1"}}
+	if got := s.LiveModels(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("LiveModels() = %v, want %v", got, want)
+	}
+	if got := (&AstroSpec{}).LiveModels(); got != nil {
+		t.Fatalf("LiveModels() with no models = %v, want nil", got)
 	}
 }

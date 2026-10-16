@@ -259,6 +259,18 @@ type Model struct {
 	Model     string           `json:"model,omitempty" yaml:"model,omitempty" jsonschema:"description=Deprecated: use models instead. Single model identifier."`
 	Container *ContainerConfig `json:"container,omitempty" yaml:"container,omitempty" jsonschema:"description=Custom container config (alternative to provider)"`
 	Inputs    []Input          `json:"inputs,omitempty" yaml:"inputs,omitempty" jsonschema:"description=User-supplied inputs injected into the model container"`
+	Selection string           `json:"selection,omitempty" yaml:"selection,omitempty" jsonschema:"enum=deploy,enum=live,description=When the model is chosen: deploy (default) picks one at deploy time; live also lets chat users switch between the listed models. live needs provider gateway or a cloud model provider"`
+}
+
+const (
+	ModelSelectionDeploy = "deploy"
+	ModelSelectionLive   = "live"
+)
+
+// ModelChoice is a model id under a models entry.
+type ModelChoice struct {
+	Entry string `json:"entry"`
+	Model string `json:"model"`
 }
 
 // ResolvedModels returns the effective list of model identifiers,
@@ -281,6 +293,26 @@ func (m Model) IsProviderMode() bool {
 // IsGateway reports whether this model routes through the Astro AI Gateway.
 func (m Model) IsGateway() bool {
 	return IsGatewayModelProvider(m.Provider)
+}
+
+// IsLive reports whether chat users can switch between this entry's models.
+func (m Model) IsLive() bool {
+	return m.Selection == ModelSelectionLive
+}
+
+// LiveModels returns the models of every live entry, entries sorted by name.
+func (s *AstroSpec) LiveModels() []ModelChoice {
+	var out []ModelChoice
+	for _, name := range sortedKeys(s.Models) {
+		m := s.Models[name]
+		if !m.IsLive() {
+			continue
+		}
+		for _, id := range m.ResolvedModels() {
+			out = append(out, ModelChoice{Entry: name, Model: id})
+		}
+	}
+	return out
 }
 
 // UsesGateway reports whether the agent uses the Astro AI Gateway — either via
