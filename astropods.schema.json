@@ -187,7 +187,7 @@
           "type": "array",
           "description": "User-supplied inputs injected into the agent container"
         },
-        "skills": {
+        "jobs": {
           "items": {
             "properties": {
               "name": {
@@ -197,7 +197,7 @@
               },
               "description": {
                 "type": "string",
-                "description": "What the agent does with a task for this skill"
+                "description": "What the agent does with a task for this job"
               }
             },
             "additionalProperties": false,
@@ -207,7 +207,7 @@
             ]
           },
           "type": "array",
-          "description": "Skills the agent takes tasks for on the agent mesh. Advertised only when the agent is deployed with the mesh interface. Every agent also has agent.\u003cname\u003e"
+          "description": "Jobs the agent takes tasks for on the agent mesh. Advertised only when the agent is deployed with the mesh interface. Every agent also has agent.\u003cname\u003e"
         },
         "annotations": {
           "additionalProperties": {

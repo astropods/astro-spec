@@ -107,7 +107,7 @@ func ParseSpecBytes(data []byte) (*AstroSpec, error) {
 			return nil, err
 		}
 	}
-	if err := ValidateSkills(spec.Agent.Skills); err != nil {
+	if err := ValidateJobs(spec.Agent.Jobs); err != nil {
 		return nil, err
 	}
 
@@ -262,28 +262,28 @@ func ParseSpecBytes(data []byte) (*AstroSpec, error) {
 	return &spec, nil
 }
 
-var validSkillName = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,127}$`)
+var validJobName = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,127}$`)
 
-// ReservedSkillPrefix starts the skill every agent gets from its name.
-const ReservedSkillPrefix = "agent."
+// ReservedJobPrefix starts the job every agent gets from its name.
+const ReservedJobPrefix = "agent."
 
-const maxSkillDescriptionLength = 500
+const maxJobDescriptionLength = 500
 
-// ValidateSkills applies the agent.skills rules ParseSpec enforces, for a spec
+// ValidateJobs applies the agent.jobs rules ParseSpec enforces, for a spec
 // that arrives already decoded.
-func ValidateSkills(skills []Skill) error {
-	seen := make(map[string]bool, len(skills))
-	for i, s := range skills {
-		path := fmt.Sprintf("agent.skills[%d]", i)
+func ValidateJobs(jobs []Job) error {
+	seen := make(map[string]bool, len(jobs))
+	for i, s := range jobs {
+		path := fmt.Sprintf("agent.jobs[%d]", i)
 		switch {
-		case !validSkillName.MatchString(s.Name):
+		case !validJobName.MatchString(s.Name):
 			return fmt.Errorf("%s.name: %q must be lowercase letters, digits, dots, dashes and underscores, starting with a letter or digit, at most 128 characters", path, s.Name)
-		case strings.HasPrefix(s.Name, ReservedSkillPrefix):
-			return fmt.Errorf("%s.name: %q uses the reserved prefix %q; every agent already has %s<name>", path, s.Name, ReservedSkillPrefix, ReservedSkillPrefix)
+		case strings.HasPrefix(s.Name, ReservedJobPrefix):
+			return fmt.Errorf("%s.name: %q uses the reserved prefix %q; every agent already has %s<name>", path, s.Name, ReservedJobPrefix, ReservedJobPrefix)
 		case seen[s.Name]:
 			return fmt.Errorf("%s.name: %q is listed twice", path, s.Name)
-		case len([]rune(s.Description)) > maxSkillDescriptionLength:
-			return fmt.Errorf("%s.description: must be at most %d characters", path, maxSkillDescriptionLength)
+		case len([]rune(s.Description)) > maxJobDescriptionLength:
+			return fmt.Errorf("%s.description: must be at most %d characters", path, maxJobDescriptionLength)
 		}
 		seen[s.Name] = true
 	}
