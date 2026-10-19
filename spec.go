@@ -157,7 +157,7 @@ type Container struct {
 	Interfaces  *Interfaces  `json:"interfaces,omitempty" yaml:"interfaces,omitempty" jsonschema:"description=Agent capabilities: frontend and/or messaging"`
 	Healthcheck *Healthcheck `json:"healthcheck,omitempty" yaml:"healthcheck,omitempty"`
 	Inputs      []Input      `json:"inputs,omitempty" yaml:"inputs,omitempty" jsonschema:"description=User-supplied inputs injected into the agent container"`
-	Skills      []Skill      `json:"skills,omitempty" yaml:"skills,omitempty" jsonschema:"description=Skills the agent takes tasks for on the agent mesh. Advertised only when the agent is deployed with the mesh interface. Every agent also has agent.<name>"`
+	Jobs      []Job      `json:"jobs,omitempty" yaml:"jobs,omitempty" jsonschema:"description=Jobs the agent takes tasks for on the agent mesh. Advertised only when the agent is deployed with the mesh interface. Every agent also has agent.<name>"`
 	// Annotations are agent-scoped key/value hints. Well-known key: "runtime"
 	// selects the agent runtime ("agentcore" for AWS Bedrock AgentCore mode;
 	// empty/absent = the default runtime).
@@ -171,11 +171,11 @@ type Container struct {
 	AIGateway bool `json:"astro_ai_gateway,omitempty" yaml:"astro_ai_gateway,omitempty" jsonschema:"description=Deprecated: use a model with provider: gateway. Enables Astro AI Gateway access (injects ASTRO_GATEWAY_URL and ASTRO_GATEWAY_API_KEY)"`
 }
 
-// Skill is a capability the agent advertises on the agent mesh. Another agent,
-// or a room observer, sends it a task by naming the skill.
-type Skill struct {
+// Job is a kind of work the agent takes on the agent mesh. Another agent,
+// or a room observer, sends it a task by naming the job.
+type Job struct {
 	Name        string `json:"name" yaml:"name" jsonschema:"description=Lowercase letters\\, digits\\, dots\\, dashes and underscores. Starts with a letter or digit. At most 128 characters. Names starting with agent. are reserved,pattern=^[a-z0-9][a-z0-9._-]{0\\,127}$"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty" jsonschema:"description=What the agent does with a task for this skill"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty" jsonschema:"description=What the agent does with a task for this job"`
 }
 
 // Runtime returns the agent's declared runtime annotation, or "" for the default runtime.
