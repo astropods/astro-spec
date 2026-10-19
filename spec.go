@@ -157,7 +157,7 @@ type Container struct {
 	Interfaces  *Interfaces  `json:"interfaces,omitempty" yaml:"interfaces,omitempty" jsonschema:"description=Agent capabilities: frontend and/or messaging"`
 	Healthcheck *Healthcheck `json:"healthcheck,omitempty" yaml:"healthcheck,omitempty"`
 	Inputs      []Input      `json:"inputs,omitempty" yaml:"inputs,omitempty" jsonschema:"description=User-supplied inputs injected into the agent container"`
-	Jobs      []Job      `json:"jobs,omitempty" yaml:"jobs,omitempty" jsonschema:"description=Jobs the agent takes tasks for on the agent mesh. Advertised only when the agent is deployed with the mesh interface. Every agent also has agent.<name>"`
+	Jobs        []Job        `json:"jobs,omitempty" yaml:"jobs,omitempty" jsonschema:"description=Jobs the agent takes tasks for on the agent mesh. Advertised only when the agent is deployed with the mesh interface. Every agent also has agent.<name>"`
 	// Annotations are agent-scoped key/value hints. Well-known key: "runtime"
 	// selects the agent runtime ("agentcore" for AWS Bedrock AgentCore mode;
 	// empty/absent = the default runtime).
