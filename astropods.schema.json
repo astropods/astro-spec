@@ -1239,6 +1239,13 @@
           ],
           "description": "A headless browser already installed in the sandbox"
         },
+        "size": {
+          "type": "string",
+          "enum": [
+            "large"
+          ],
+          "description": "Memory size of the sandbox. large requires browser"
+        },
         "env": {
           "additionalProperties": {
             "type": "string"
