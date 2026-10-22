@@ -89,7 +89,7 @@ func TestToolchainIsRequiredSoTheSectionIsNeverEmpty(t *testing.T) {
 func TestAReservedSandboxKeyIsRefusedRatherThanIgnored(t *testing.T) {
 	// yaml.Unmarshal drops an unknown key, so without the check these would
 	// parse and silently do nothing.
-	for _, key := range []string{"files", "classes", "size", "tools"} {
+	for _, key := range []string{"files", "classes", "tools"} {
 		t.Run(key, func(t *testing.T) {
 			_, err := sandboxSpec(t, "sandbox:\n  toolchain: auto\n  "+key+": something\n")
 			if err == nil {
@@ -224,6 +224,43 @@ func TestABrowserThatIsNotAWorkingMappingIsRefused(t *testing.T) {
 			}
 			if !strings.Contains(err.Error(), tc.mention) {
 				t.Errorf("the error does not mention %q: %v", tc.mention, err)
+			}
+		})
+	}
+}
+
+func TestSizeLargeAlongsideABrowserParses(t *testing.T) {
+	parsed, err := sandboxSpec(t, "sandbox:\n  toolchain: auto\n  size: large\n  browser:\n    name: chromium\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Sandbox.Size != "large" {
+		t.Errorf("size is %q, want large", parsed.Sandbox.Size)
+	}
+}
+
+func TestASandboxWithoutASizeHasNone(t *testing.T) {
+	parsed, err := sandboxSpec(t, "sandbox:\n  toolchain: auto\n  browser:\n    name: chromium\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Sandbox.Size != "" {
+		t.Errorf("a sandbox with no size key parsed one: %q", parsed.Sandbox.Size)
+	}
+}
+
+func TestASizeThePlatformCannotProvideIsRefused(t *testing.T) {
+	for name, tc := range map[string]struct{ section, mention string }{
+		"unknown size":      {"size: huge\n  browser:\n    name: chromium", "must be large"},
+		"large, no browser": {"size: large", "requires sandbox.browser"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := sandboxSpec(t, "sandbox:\n  toolchain: auto\n  "+tc.section+"\n")
+			if err == nil {
+				t.Fatalf("%q parsed, so the spec would accept a size no image has", tc.section)
+			}
+			if !strings.Contains(err.Error(), "sandbox.size") || !strings.Contains(err.Error(), tc.mention) {
+				t.Errorf("the error does not name sandbox.size and %q: %v", tc.mention, err)
 			}
 		})
 	}

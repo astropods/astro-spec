@@ -51,6 +51,7 @@ type Sandbox struct {
 	Python    *SandboxPython    `json:"python,omitempty" yaml:"python,omitempty" jsonschema:"description=Python interpreter and PyPI packages"`
 	Node      *SandboxNode      `json:"node,omitempty" yaml:"node,omitempty" jsonschema:"description=Node interpreter and global npm packages"`
 	Browser   *SandboxBrowser   `json:"browser,omitempty" yaml:"browser,omitempty" jsonschema:"description=A headless browser already installed in the sandbox"`
+	Size      string            `json:"size,omitempty" yaml:"size,omitempty" jsonschema:"description=Memory size of the sandbox. large requires browser,enum=large"`
 	Env       map[string]string `json:"env,omitempty" yaml:"env,omitempty" jsonschema:"description=Environment variables set for every command the sandbox runs"`
 	Setup     []string          `json:"setup,omitempty" yaml:"setup,omitempty" jsonschema:"description=Shell commands run in order after every field above"`
 }
@@ -93,7 +94,7 @@ type SandboxNode struct {
 // reservedSandboxKeys are named in RFC-1 section 9.4. yaml.Unmarshal ignores an
 // unknown key, so a spec setting one would otherwise be accepted and silently
 // do nothing.
-var reservedSandboxKeys = []string{"files", "classes", "size", "tools"}
+var reservedSandboxKeys = []string{"files", "classes", "tools"}
 
 func (s *Sandbox) UnmarshalYAML(node *yaml.Node) error {
 	if node.Kind != yaml.MappingNode {

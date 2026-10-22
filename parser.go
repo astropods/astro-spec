@@ -337,6 +337,8 @@ var validToolchainModes = map[string]bool{"auto": true, "always": true, "never":
 
 var validBrowserNames = map[string]bool{"chromium": true}
 
+var validSandboxSizes = map[string]bool{"large": true}
+
 func validateSandbox(s *Sandbox) error {
 	if s.Toolchain == "" {
 		return fmt.Errorf("sandbox.toolchain: required, and must be one of auto, always, never")
@@ -373,6 +375,15 @@ func validateSandbox(s *Sandbox) error {
 		}
 		if !validBrowserNames[s.Browser.Name] {
 			return fmt.Errorf("sandbox.browser.name: must be chromium (got %q)", s.Browser.Name)
+		}
+	}
+
+	if s.Size != "" {
+		if !validSandboxSizes[s.Size] {
+			return fmt.Errorf("sandbox.size: must be large (got %q)", s.Size)
+		}
+		if s.Browser == nil {
+			return fmt.Errorf("sandbox.size: large requires sandbox.browser")
 		}
 	}
 
