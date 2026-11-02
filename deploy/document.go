@@ -15,6 +15,9 @@ const (
 
 	FileName = "astropods.deploy.yml"
 
+	SizingFixed = "fixed"
+	SizingAuto  = "auto"
+
 	maxEnvironmentNameLen = 64
 	maxDocumentBytes      = 64 * 1024
 )
@@ -59,7 +62,16 @@ type Resources struct {
 	Ingestion    map[string]Compute
 }
 
+// Compute sizes a component. The embedded Size applies when Sizing is
+// SizingFixed, and Min and Max apply when it is SizingAuto.
 type Compute struct {
+	Sizing string
+	Size
+	Min *Size
+	Max *Size
+}
+
+type Size struct {
 	CPU    string
 	Memory string
 }
@@ -95,6 +107,13 @@ type rawResources struct {
 }
 
 type rawCompute struct {
+	Sizing  string `yaml:"sizing"`
+	rawSize `yaml:",inline"`
+	Min     *rawSize `yaml:"min"`
+	Max     *rawSize `yaml:"max"`
+}
+
+type rawSize struct {
 	CPU    string `yaml:"cpu"`
 	Memory string `yaml:"memory"`
 }
@@ -254,11 +273,47 @@ func normalizeResources(r rawResources) (*Resources, error) {
 }
 
 func normalizeCompute(label string, r rawCompute) (Compute, error) {
-	c := Compute{CPU: strings.TrimSpace(r.CPU), Memory: strings.TrimSpace(r.Memory)}
-	if c.CPU == "" && c.Memory == "" {
-		return Compute{}, fmt.Errorf("%s sets neither cpu nor memory", label)
+	c := Compute{Sizing: strings.TrimSpace(r.Sizing), Size: normalizeSize(r.rawSize)}
+	switch c.Sizing {
+	case SizingFixed:
+		if r.Min != nil || r.Max != nil {
+			return Compute{}, fmt.Errorf("%s: min and max need sizing auto", label)
+		}
+		if c.CPU == "" && c.Memory == "" {
+			return Compute{}, fmt.Errorf("%s: sizing fixed needs cpu or memory", label)
+		}
+	case SizingAuto:
+		if c.CPU != "" || c.Memory != "" {
+			return Compute{}, fmt.Errorf("%s: cpu and memory need sizing fixed, use min and max for sizing auto", label)
+		}
+		var err error
+		if c.Min, err = normalizeBound(label+".min", r.Min); err != nil {
+			return Compute{}, err
+		}
+		if c.Max, err = normalizeBound(label+".max", r.Max); err != nil {
+			return Compute{}, err
+		}
+	case "":
+		return Compute{}, fmt.Errorf("%s: sizing is required, set %s or %s", label, SizingFixed, SizingAuto)
+	default:
+		return Compute{}, fmt.Errorf("%s: sizing must be %s or %s, got %q", label, SizingFixed, SizingAuto, c.Sizing)
 	}
 	return c, nil
+}
+
+func normalizeSize(r rawSize) Size {
+	return Size{CPU: strings.TrimSpace(r.CPU), Memory: strings.TrimSpace(r.Memory)}
+}
+
+func normalizeBound(label string, r *rawSize) (*Size, error) {
+	if r == nil {
+		return nil, nil
+	}
+	b := normalizeSize(*r)
+	if b.CPU == "" && b.Memory == "" {
+		return nil, fmt.Errorf("%s sets neither cpu nor memory", label)
+	}
+	return &b, nil
 }
 
 func invalidDocument(format string, args ...any) error {

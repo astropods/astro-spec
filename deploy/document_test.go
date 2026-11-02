@@ -24,8 +24,12 @@ environments:
     schedules: { nightly-sync: "0 3 * * *" }
     knowledge: { docs: kb_docs_prod }
     resources:
-      agent: { cpu: "1", memory: 2Gi }
-      ingestion: { nightly-sync: { memory: 1Gi } }
+      agent: { sizing: fixed, cpu: "1", memory: 2Gi }
+      ingestion: { nightly-sync: { sizing: fixed, memory: 1Gi } }
+      knowledge:
+        docs: { sizing: auto, min: { memory: 512Mi }, max: { cpu: "2", memory: 4Gi } }
+      models:
+        default: { sizing: auto }
   staging:
     branch: develop
 `
@@ -40,7 +44,7 @@ func TestParseMapsEachEnvironmentOntoATemplateRequest(t *testing.T) {
 	}
 
 	cases := map[string]string{
-		"production": `{"cluster_id":"us-east-1","interfaces":{"adapters":["web","slack"],"auth":{"web":{"public":false},"custom":{"public":true}}},"variables":{"LOG_LEVEL":{"value":"info"},"OPENAI_API_KEY":{"ref":"OPENAI_API_KEY"},"PORT":{"value":"8080"}},"models":{"default":"claude-sonnet-5-5"},"schedules":{"nightly-sync":"0 3 * * *"},"bindings":{"knowledge":{"docs":"kb_docs_prod"}},"provisioning":{"agent":{"compute":{"cpu":"1","memory":"2Gi"}},"ingestion":{"nightly-sync":{"compute":{"memory":"1Gi"}}}}}`,
+		"production": `{"cluster_id":"us-east-1","interfaces":{"adapters":["web","slack"],"auth":{"web":{"public":false},"custom":{"public":true}}},"variables":{"LOG_LEVEL":{"value":"info"},"OPENAI_API_KEY":{"ref":"OPENAI_API_KEY"},"PORT":{"value":"8080"}},"models":{"default":"claude-sonnet-5-5"},"schedules":{"nightly-sync":"0 3 * * *"},"bindings":{"knowledge":{"docs":"kb_docs_prod"}},"provisioning":{"agent":{"compute":{"cpu":"1","memory":"2Gi"},"sizing":{"mode":"fixed"}},"models":{"default":{"sizing":{"mode":"auto"}}},"knowledge":{"docs":{"sizing":{"mode":"auto","min":{"memory":"512Mi"},"max":{"cpu":"2","memory":"4Gi"}}}},"ingestion":{"nightly-sync":{"compute":{"memory":"1Gi"},"sizing":{"mode":"fixed"}}}}}`,
 		"staging":    `{}`,
 	}
 	for name, want := range cases {
@@ -73,7 +77,13 @@ func TestParseRejectsInvalidDocuments(t *testing.T) {
 		{"variable mapping other than ref", "spec: deploy/v1\nenvironments: {a: {variables: {X: {value: y}}}}\n", "{ ref: NAME }"},
 		{"empty ref", "spec: deploy/v1\nenvironments: {a: {variables: {X: {ref: \"\"}}}}\n", "ref must name a variable"},
 		{"empty variable", "spec: deploy/v1\nenvironments: {a: {variables: {X: \"\"}}}\n", "X has no value"},
-		{"empty compute", "spec: deploy/v1\nenvironments: {a: {resources: {agent: {}}}}\n", "agent sets neither cpu nor memory"},
+		{"missing sizing", "spec: deploy/v1\nenvironments: {a: {resources: {agent: {cpu: \"1\"}}}}\n", "agent: sizing is required"},
+		{"unknown sizing", "spec: deploy/v1\nenvironments: {a: {resources: {agent: {sizing: burst}}}}\n", `sizing must be fixed or auto, got "burst"`},
+		{"fixed without size", "spec: deploy/v1\nenvironments: {a: {resources: {agent: {sizing: fixed}}}}\n", "agent: sizing fixed needs cpu or memory"},
+		{"cpu with auto", "spec: deploy/v1\nenvironments: {a: {resources: {agent: {sizing: auto, cpu: \"1\"}}}}\n", "cpu and memory need sizing fixed"},
+		{"bounds with fixed", "spec: deploy/v1\nenvironments: {a: {resources: {agent: {sizing: fixed, cpu: \"1\", max: {cpu: \"2\"}}}}}\n", "min and max need sizing auto"},
+		{"unknown resources key", "spec: deploy/v1\nenvironments: {a: {resources: {agent: {sizing: fixed, cpu: \"1\", replicas: 2}}}}\n", "field replicas not found"},
+		{"empty auto bound", "spec: deploy/v1\nenvironments: {a: {resources: {models: {m: {sizing: auto, min: {}}}}}}\n", "models.m.min sets neither cpu nor memory"},
 		{"environment name with spaces", "spec: deploy/v1\nenvironments: {\" a\": {}}\n", "no surrounding spaces"},
 		{"two documents", "spec: deploy/v1\nenvironments: {a: {}}\n---\nspec: deploy/v1\n", "exactly one YAML document"},
 	}

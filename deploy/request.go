@@ -48,6 +48,13 @@ type Provisioning struct {
 
 type ComponentProvisioning struct {
 	Compute *ComponentCompute `json:"compute,omitempty"`
+	Sizing  *ComponentSizing  `json:"sizing,omitempty"`
+}
+
+type ComponentSizing struct {
+	Mode string            `json:"mode"`
+	Min  *ComponentCompute `json:"min,omitempty"`
+	Max  *ComponentCompute `json:"max,omitempty"`
 }
 
 type ComponentCompute struct {
@@ -118,5 +125,20 @@ func componentMap(in map[string]Compute) map[string]ComponentProvisioning {
 }
 
 func component(c Compute) ComponentProvisioning {
-	return ComponentProvisioning{Compute: &ComponentCompute{CPU: c.CPU, Memory: c.Memory}}
+	p := ComponentProvisioning{Sizing: &ComponentSizing{
+		Mode: c.Sizing,
+		Min:  bound(c.Min),
+		Max:  bound(c.Max),
+	}}
+	if c.Sizing == SizingFixed {
+		p.Compute = &ComponentCompute{CPU: c.CPU, Memory: c.Memory}
+	}
+	return p
+}
+
+func bound(s *Size) *ComponentCompute {
+	if s == nil {
+		return nil
+	}
+	return &ComponentCompute{CPU: s.CPU, Memory: s.Memory}
 }
