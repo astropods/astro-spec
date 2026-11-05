@@ -16,7 +16,7 @@ const (
 	schemaV1 = "evaluation/v1"
 
 	minEvaluators = 1
-	maxEvaluators = 10
+	maxEvaluators = 200
 
 	maxTotalBytes = 128 * 1024
 )
