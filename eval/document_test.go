@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -167,13 +168,27 @@ evaluators: []
 	requireInvalidDocument(t, err)
 }
 
-func TestParseRejectsTooManyEvaluators(t *testing.T) {
+func distinctEvaluatorsDocument(count int) string {
 	var sb strings.Builder
 	sb.WriteString("schema: evaluation/v1\nevaluators:\n")
-	for i := 0; i < 11; i++ {
-		sb.WriteString("  - ref: preset/exposed-pii\n")
+	for i := 0; i < count; i++ {
+		fmt.Fprintf(&sb, "  - key: custom_%d\n    label: Custom %d\n    type: llm\n    prompt: Judge the response.\n    output:\n      type: boolean\n", i, i)
 	}
-	_, err := Parse(sb.String(), nil)
+	return sb.String()
+}
+
+func TestParseAcceptsTwoHundredEvaluators(t *testing.T) {
+	result, err := Parse(distinctEvaluatorsDocument(200), nil)
+	if err != nil {
+		t.Fatalf("Parse() error = %v, want nil for 200 evaluators", err)
+	}
+	if got := len(result.Document.Evaluators); got != 200 {
+		t.Errorf("len(Evaluators) = %d, want 200", got)
+	}
+}
+
+func TestParseRejectsTooManyEvaluators(t *testing.T) {
+	_, err := Parse(distinctEvaluatorsDocument(201), nil)
 	requireInvalidDocument(t, err)
 }
 
