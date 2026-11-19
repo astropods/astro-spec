@@ -87,7 +87,7 @@
         },
         "distributed": {
           "type": "boolean",
-          "description": "Whether the agent supports multi-replica deployment"
+          "description": "Deprecated: ignored. The replica count is set when the agent is deployed"
         },
         "interfaces": {
           "properties": {

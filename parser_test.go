@@ -1237,6 +1237,37 @@ func TestDeprecationWarnings_AIGatewayBoolean(t *testing.T) {
 	}
 }
 
+func TestDistributedStillParsesAndWarnsAsDeprecated(t *testing.T) {
+	s, err := Parse([]byte("spec: blueprint/v1\nname: multi\nagent:\n  image: agent:latest\n  distributed: true\n"))
+	if err != nil {
+		t.Fatalf("a blueprint that still sets agent.distributed must parse, got %v", err)
+	}
+	w := DeprecationWarnings(s)
+	if len(w) != 1 || !strings.Contains(w[0], "agent.distributed") {
+		t.Errorf("want one agent.distributed deprecation warning, got %v", w)
+	}
+}
+
+func TestSchemaStillAcceptsDistributed(t *testing.T) {
+	var doc struct {
+		Properties map[string]struct {
+			Properties map[string]struct {
+				Description string `json:"description"`
+			} `json:"properties"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(Schema(), &doc); err != nil {
+		t.Fatalf("parse embedded schema: %v", err)
+	}
+	prop, ok := doc.Properties["agent"].Properties["distributed"]
+	if !ok {
+		t.Fatal("agent rejects unknown keys, so dropping distributed from the schema fails every push of an older blueprint")
+	}
+	if !strings.HasPrefix(prop.Description, "Deprecated") {
+		t.Errorf("distributed description should mark it deprecated, got %q", prop.Description)
+	}
+}
+
 func TestParseSpec_RejectsAnInvalidName(t *testing.T) {
 	body := func(name string) string {
 		return "spec: blueprint/v1\nname: " + name + "\nagent:\n  image: agent:latest\n"

@@ -154,7 +154,7 @@ const AgentCoreRuntime = "agentcore"
 type Container struct {
 	Image       string       `json:"image,omitempty" yaml:"image,omitempty"`
 	Build       *BuildConfig `json:"build,omitempty" yaml:"build,omitempty"`
-	Distributed bool         `json:"distributed,omitempty" yaml:"distributed,omitempty" jsonschema:"description=Whether the agent supports multi-replica deployment"`
+	Distributed bool         `json:"distributed,omitempty" yaml:"distributed,omitempty" jsonschema:"description=Deprecated: ignored. The replica count is set when the agent is deployed"`
 	Interfaces  *Interfaces  `json:"interfaces,omitempty" yaml:"interfaces,omitempty" jsonschema:"description=Agent capabilities: frontend and/or messaging"`
 	Healthcheck *Healthcheck `json:"healthcheck,omitempty" yaml:"healthcheck,omitempty"`
 	Inputs      []Input      `json:"inputs,omitempty" yaml:"inputs,omitempty" jsonschema:"description=User-supplied inputs injected into the agent container"`
