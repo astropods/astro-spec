@@ -499,6 +499,9 @@ func DeprecationWarnings(s *AstroSpec) []string {
 	if s.Agent.AIGateway {
 		warnings = append(warnings, "agent.astro_ai_gateway is deprecated; declare a model with `provider: gateway` (and list selectable models) instead")
 	}
+	if s.Agent.Distributed {
+		warnings = append(warnings, "agent.distributed is deprecated and ignored; the replica count is set when the agent is deployed")
+	}
 	return warnings
 }
 
