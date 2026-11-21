@@ -83,6 +83,9 @@ func TestParseRejectsInvalidDocuments(t *testing.T) {
 		{"cpu with auto", "spec: deploy/v1\nenvironments: {a: {resources: {agent: {sizing: auto, cpu: \"1\"}}}}\n", "cpu and memory need sizing fixed"},
 		{"bounds with fixed", "spec: deploy/v1\nenvironments: {a: {resources: {agent: {sizing: fixed, cpu: \"1\", max: {cpu: \"2\"}}}}}\n", "min and max need sizing auto"},
 		{"unknown resources key", "spec: deploy/v1\nenvironments: {a: {resources: {agent: {sizing: fixed, cpu: \"1\", replicas: 2}}}}\n", "field replicas not found"},
+		{"high availability on a model", "spec: deploy/v1\nenvironments: {a: {resources: {models: {m: {sizing: fixed, cpu: \"1\", high_availability: true}}}}}\n", "models.m: high_availability is available only for a knowledge entry"},
+		{"high availability on the agent", "spec: deploy/v1\nenvironments: {a: {resources: {agent: {sizing: fixed, cpu: \"1\", high_availability: true}}}}\n", "agent: high_availability is available only for a knowledge entry"},
+		{"high availability with auto sizing", "spec: deploy/v1\nenvironments: {a: {resources: {knowledge: {docs: {sizing: auto, high_availability: true}}}}}\n", "knowledge.docs: high_availability needs sizing fixed"},
 		{"empty auto bound", "spec: deploy/v1\nenvironments: {a: {resources: {models: {m: {sizing: auto, min: {}}}}}}\n", "models.m.min sets neither cpu nor memory"},
 		{"environment name with spaces", "spec: deploy/v1\nenvironments: {\" a\": {}}\n", "no surrounding spaces"},
 		{"two documents", "spec: deploy/v1\nenvironments: {a: {}}\n---\nspec: deploy/v1\n", "exactly one YAML document"},
@@ -104,5 +107,20 @@ func TestParseRejectsAnOversizedDocument(t *testing.T) {
 	_, err := Parse("spec: deploy/v1\n" + strings.Repeat("#", maxDocumentBytes))
 	if !errors.Is(err, ErrInvalidDocument) {
 		t.Fatalf("Parse() error = %v, want ErrInvalidDocument for a document over %d bytes", err, maxDocumentBytes)
+	}
+}
+
+func TestParseSendsHighAvailabilityForAKnowledgeEntry(t *testing.T) {
+	doc, err := Parse("spec: deploy/v1\nenvironments: {prod: {resources: {knowledge: {memory: {sizing: fixed, cpu: 500m, memory: 1Gi, high_availability: true}}}}}\n")
+	if err != nil {
+		t.Fatalf("Parse() error = %v, want nil", err)
+	}
+	got, err := json.Marshal(doc.Environments["prod"].TemplateRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"provisioning":{"knowledge":{"memory":{"compute":{"cpu":"500m","memory":"1Gi"},"sizing":{"mode":"fixed"},"high_availability":true}}}}`
+	if string(got) != want {
+		t.Errorf("TemplateRequest() = %s\nwant %s, the field astro-server reads to run the entry as a database cluster", got, want)
 	}
 }

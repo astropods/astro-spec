@@ -69,6 +69,9 @@ type Compute struct {
 	Size
 	Min *Size
 	Max *Size
+	// HighAvailability runs a persistent postgres knowledge entry as a
+	// 3-instance database cluster. Only knowledge entries accept it.
+	HighAvailability *bool
 }
 
 type Size struct {
@@ -107,10 +110,11 @@ type rawResources struct {
 }
 
 type rawCompute struct {
-	Sizing  string `yaml:"sizing"`
-	rawSize `yaml:",inline"`
-	Min     *rawSize `yaml:"min"`
-	Max     *rawSize `yaml:"max"`
+	Sizing           string `yaml:"sizing"`
+	rawSize          `yaml:",inline"`
+	Min              *rawSize `yaml:"min"`
+	Max              *rawSize `yaml:"max"`
+	HighAvailability *bool    `yaml:"high_availability"`
 }
 
 type rawSize struct {
@@ -240,21 +244,22 @@ func normalizeEnvironment(r rawEnvironment) (Environment, error) {
 func normalizeResources(r rawResources) (*Resources, error) {
 	res := &Resources{}
 	if r.Agent != nil {
-		c, err := normalizeCompute("agent", *r.Agent)
+		c, err := normalizeCompute("agent", *r.Agent, false)
 		if err != nil {
 			return nil, err
 		}
 		res.Agent = &c
 	}
 	groups := []struct {
-		label string
-		in    map[string]rawCompute
-		out   *map[string]Compute
+		label   string
+		in      map[string]rawCompute
+		out     *map[string]Compute
+		allowHA bool
 	}{
-		{"models", r.Models, &res.Models},
-		{"knowledge", r.Knowledge, &res.Knowledge},
-		{"integrations", r.Integrations, &res.Integrations},
-		{"ingestion", r.Ingestion, &res.Ingestion},
+		{"models", r.Models, &res.Models, false},
+		{"knowledge", r.Knowledge, &res.Knowledge, true},
+		{"integrations", r.Integrations, &res.Integrations, false},
+		{"ingestion", r.Ingestion, &res.Ingestion, false},
 	}
 	for _, g := range groups {
 		if len(g.in) == 0 {
@@ -262,7 +267,7 @@ func normalizeResources(r rawResources) (*Resources, error) {
 		}
 		*g.out = make(map[string]Compute, len(g.in))
 		for name, rc := range g.in {
-			c, err := normalizeCompute(g.label+"."+name, rc)
+			c, err := normalizeCompute(g.label+"."+name, rc, g.allowHA)
 			if err != nil {
 				return nil, err
 			}
@@ -272,8 +277,14 @@ func normalizeResources(r rawResources) (*Resources, error) {
 	return res, nil
 }
 
-func normalizeCompute(label string, r rawCompute) (Compute, error) {
-	c := Compute{Sizing: strings.TrimSpace(r.Sizing), Size: normalizeSize(r.rawSize)}
+func normalizeCompute(label string, r rawCompute, allowHA bool) (Compute, error) {
+	c := Compute{Sizing: strings.TrimSpace(r.Sizing), Size: normalizeSize(r.rawSize), HighAvailability: r.HighAvailability}
+	if r.HighAvailability != nil && !allowHA {
+		return Compute{}, fmt.Errorf("%s: high_availability is available only for a knowledge entry", label)
+	}
+	if r.HighAvailability != nil && *r.HighAvailability && c.Sizing == SizingAuto {
+		return Compute{}, fmt.Errorf("%s: high_availability needs sizing %s", label, SizingFixed)
+	}
 	switch c.Sizing {
 	case SizingFixed:
 		if r.Min != nil || r.Max != nil {
