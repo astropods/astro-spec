@@ -20,6 +20,7 @@ type PortDef struct {
 type BindCredentialDef struct {
 	Attr       string // reference attribute (e.g. "user", "password")
 	StorageKey string // exact key in credentials store (e.g. "POSTGRES_USER")
+	BindOnly   bool   // external stores only; excluded from self-hosted container env
 }
 
 // BuiltinProvider is the single canonical type for every platform-known provider.
@@ -123,6 +124,7 @@ var builtinProviders = []BuiltinProvider{
 			{Attr: "user", StorageKey: "POSTGRES_USER"},
 			{Attr: "password", StorageKey: "POSTGRES_PASSWORD"},
 			{Attr: "database", StorageKey: "POSTGRES_DB"},
+			{Attr: "ssl_ca", StorageKey: "POSTGRES_SSL_CA", BindOnly: true},
 		},
 	},
 	{
