@@ -7,10 +7,12 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "Version to tag, with the leading v (for example v0.4.0)"
+      bump:
+        description: "Which part of the latest tag to increment"
         required: true
-        type: string
+        type: choice
+        options: [patch, minor, major]
+        default: patch
       dry_run:
         description: "Run every check and report the tag, without pushing it"
         required: false
@@ -24,7 +26,7 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    name: Tag ${{ inputs.version }}
+    name: Release (${{ inputs.bump }})
     permissions:
       contents: write
 
@@ -44,9 +46,42 @@ jobs:
           fi
           echo "OK: releasing from ${{ github.event.repository.default_branch }}"
 
+      - name: Compute the next version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          latest="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)"
+          latest="${latest:-v0.0.0}"
+          IFS=. read -r major minor patch <<< "${latest#v}"
+          case "$BUMP" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+            *) echo "::error::bump must be patch, minor, or major, got $BUMP"; exit 1 ;;
+          esac
+          version="v$major.$minor.$patch"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "OK: $BUMP bump of $latest is $version"
+          echo "### $BUMP bump: $latest to $version" >> "$GITHUB_STEP_SUMMARY"
+
+      # Go needs the module path to end in /vN from v2 on, or consumers cannot
+      # fetch the version.
+      - name: Check the module path allows the major version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          major="${VERSION#v}"; major="${major%%.*}"
+          module="$(sed -n 's/^module //p' go.mod)"
+          if [ "$major" -ge 2 ] && [ "${module##*/}" != "v$major" ]; then
+            echo "::error::$VERSION needs the module path to end in /v$major, but go.mod declares $module."
+            exit 1
+          fi
+          echo "OK: $module can publish $VERSION"
+
       - name: Check the version is a semver tag
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           if ! printf '%s' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "::error::$VERSION is not vMAJOR.MINOR.PATCH. A Go module version needs the leading v."
@@ -56,7 +91,7 @@ jobs:
 
       - name: Check the tag is not taken
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
             echo "::error::$VERSION already exists. proxy.golang.org caches a version permanently, so pick the next one."
@@ -66,7 +101,7 @@ jobs:
 
       - name: Check the version moves forward
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           latest="$(git tag --sort=-v:refname | head -1)"
           if [ -z "$latest" ]; then
@@ -116,7 +151,7 @@ jobs:
       - name: Report the tag without pushing
         if: ${{ inputs.dry_run }}
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           echo "Dry run: every check passed. $VERSION would be tagged at $(git rev-parse --short HEAD)."
           echo "### Dry run: $VERSION would tag \`$(git rev-parse --short HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
@@ -124,7 +159,7 @@ jobs:
       - name: Tag and push
         if: ${{ !inputs.dry_run }}
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
