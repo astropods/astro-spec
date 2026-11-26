@@ -429,7 +429,7 @@ func (DevInterfaces) JSONSchema() *jsonschema.Schema {
 	slackConfigProps.Set("allowed_user_ids", &jsonschema.Schema{
 		Type:        "array",
 		Items:       &jsonschema.Schema{Type: "string"},
-		Description: "Slack user IDs allowed to interact with the agent. Empty means allow all users.",
+		Description: "Deprecated: ignored. Restrict access with allowed_channel_ids.",
 	})
 	slackConfigProps.Set("observe_channel_ids", &jsonschema.Schema{
 		Type:        "array",
@@ -549,7 +549,7 @@ type DevMessaging struct {
 type SlackAdapterConfig struct {
 	ActionableReactions []string       `json:"actionable_reactions,omitempty" yaml:"actionable_reactions,omitempty" jsonschema:"description=Emoji names that trigger agent behavior (e.g. ticket). When omitted no reactions are forwarded."`
 	AllowedChannelIDs   []string       `json:"allowed_channel_ids,omitempty" yaml:"allowed_channel_ids,omitempty" jsonschema:"description=Slack channel IDs allowed to interact with the agent. Empty means allow all channels."`
-	AllowedUserIDs      []string       `json:"allowed_user_ids,omitempty" yaml:"allowed_user_ids,omitempty" jsonschema:"description=Slack user IDs allowed to interact with the agent. Empty means allow all users."`
+	AllowedUserIDs      []string       `json:"allowed_user_ids,omitempty" yaml:"allowed_user_ids,omitempty" jsonschema:"description=Deprecated: ignored. Restrict access with allowed_channel_ids."`
 	ObserveChannelIDs   []string       `json:"observe_channel_ids,omitempty" yaml:"observe_channel_ids,omitempty" jsonschema:"description=Slack channel IDs whose non-mention messages are forwarded to the agent instead of dropped."`
 	SocketMode          *bool          `json:"socket_mode,omitempty" yaml:"socket_mode,omitempty" jsonschema:"description=Use Slack Socket Mode for real-time events. Default: true"`
 	AutoThread          *bool          `json:"auto_thread,omitempty" yaml:"auto_thread,omitempty" jsonschema:"description=Automatically thread bot replies. Default: true"`
