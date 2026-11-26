@@ -1256,6 +1256,35 @@ func TestValidateInput_NameMustBeEnvVarName(t *testing.T) {
 	}
 }
 
+func TestParseString_IngestionRequiresContainerImageOrBuild(t *testing.T) {
+	tests := []struct {
+		name      string
+		container string
+		wantErr   bool
+	}{
+		{name: "image", container: "\n    container:\n      image: worker:latest"},
+		{name: "build", container: "\n    container:\n      build:\n        context: .\n        dockerfile: Dockerfile"},
+		{name: "empty container", container: "\n    container: {}", wantErr: true},
+		{name: "no container", container: "", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			yaml := "spec: blueprint/v1\nname: test-agent\nagent:\n  image: test:latest\ningestion:\n  reindex:" +
+				tt.container + "\n    trigger:\n      type: manual\n"
+			_, err := ParseString(yaml)
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "ingestion.reindex.container: image or build is required") {
+					t.Fatalf("ParseString with %s = %v, want a missing image or build error", tt.name, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ParseString with %s = %v, want nil", tt.name, err)
+			}
+		})
+	}
+}
+
 func TestParseString_RejectsInvalidInputNameInEverySection(t *testing.T) {
 	sections := map[string]string{
 		"inputs": `
