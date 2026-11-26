@@ -308,12 +308,34 @@ func CloudCredentialKeys(s *AstroSpec) map[string]CredentialMeta {
 
 // CustomProviderCredentialKeys returns the env var key names for all custom provider
 // variables that are marked secret=true and are referenced by at least one component.
+func CustomProviderCredentialKeys(s *AstroSpec) map[string]CredentialMeta {
+	result := make(map[string]CredentialMeta)
+	for key, pv := range CustomProviderVariableKeys(s) {
+		if !pv.Variable.Secret {
+			continue
+		}
+		result[key] = CredentialMeta{
+			Provider: pv.Provider, Category: "provider",
+			Description: pv.Variable.Description, Optional: pv.Variable.Optional,
+		}
+	}
+	return result
+}
+
+// ProviderVariable is one custom provider variable under the env var key it is injected as.
+type ProviderVariable struct {
+	Provider string
+	Variable Input
+}
+
+// CustomProviderVariableKeys returns every variable of every custom provider that
+// at least one component references, secret or not, keyed by env var key.
 //
 // Keys follow §8.1: {UPPER(provider)}_{varName}, where varName is the variable suffix.
 // Duplicate-entry handling mirrors §8.1: multiple entries referencing the same custom
 // provider produce qualified keys; the primary entry also gets the bare key.
-func CustomProviderCredentialKeys(s *AstroSpec) map[string]CredentialMeta {
-	result := make(map[string]CredentialMeta)
+func CustomProviderVariableKeys(s *AstroSpec) map[string]ProviderVariable {
+	result := make(map[string]ProviderVariable)
 
 	type customEntry struct {
 		entryName string
@@ -371,13 +393,7 @@ func CustomProviderCredentialKeys(s *AstroSpec) map[string]CredentialMeta {
 
 		for i, e := range entries {
 			for _, v := range e.variables {
-				if !v.Secret {
-					continue
-				}
-				meta := CredentialMeta{
-					Provider: provName, Category: "provider",
-					Description: v.Description, Optional: v.Optional,
-				}
+				meta := ProviderVariable{Provider: provName, Variable: v}
 				if !isDup {
 					result[basePrefix+"_"+v.Name] = meta
 				} else {
