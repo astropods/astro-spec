@@ -1227,6 +1227,73 @@ func TestValidateInput_SelectDefaultMustBeOption(t *testing.T) {
 	}
 }
 
+func TestValidateInput_NameMustBeEnvVarName(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{name: "SLACK_BOT_TOKEN"},
+		{name: "_private"},
+		{name: "apiKey2"},
+		{name: "RADAR-SLACK-BOT-TOKEN", wantErr: true},
+		{name: "2FA_CODE", wantErr: true},
+		{name: "api.key", wantErr: true},
+		{name: "API KEY", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateInput("agent.inputs[0]", Input{Name: tt.name, Datatype: "string"})
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "not a valid environment variable name") {
+					t.Fatalf("validateInput(%q) = %v, want an invalid env var name error", tt.name, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("validateInput(%q) = %v, want nil", tt.name, err)
+			}
+		})
+	}
+}
+
+func TestParseString_RejectsInvalidInputNameInEverySection(t *testing.T) {
+	sections := map[string]string{
+		"inputs": `
+inputs:
+  token:
+    name: BAD-NAME
+    datatype: string`,
+		"agent.inputs": `
+agent:
+  image: test:latest
+  inputs:
+    - name: BAD-NAME
+      datatype: string`,
+		"providers.variables": `
+providers:
+  acme:
+    scope: [integrations]
+    variables:
+      - name: BAD-NAME
+        datatype: string
+integrations:
+  acme:
+    provider: acme`,
+	}
+	for section, body := range sections {
+		t.Run(section, func(t *testing.T) {
+			yaml := "spec: blueprint/v1\nname: test-agent\n" + body + "\n"
+			if !strings.Contains(body, "agent:") {
+				yaml += "agent:\n  image: test:latest\n"
+			}
+			_, err := ParseString(yaml)
+			if err == nil || !strings.Contains(err.Error(), `name "BAD-NAME" is not a valid environment variable name`) {
+				t.Fatalf("ParseString with a bad name in %s = %v, want an invalid env var name error", section, err)
+			}
+		})
+	}
+}
+
 func TestDeprecationWarnings_AIGatewayBoolean(t *testing.T) {
 	if got := DeprecationWarnings(&AstroSpec{}); len(got) != 0 {
 		t.Errorf("no deprecations expected, got %v", got)
