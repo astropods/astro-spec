@@ -1256,7 +1256,7 @@ func TestValidateInput_NameMustBeEnvVarName(t *testing.T) {
 	}
 }
 
-func TestParseString_IngestionRequiresContainerImageOrBuild(t *testing.T) {
+func TestParseSpecBytes_IngestionRequiresContainerImageOrBuild(t *testing.T) {
 	tests := []struct {
 		name      string
 		container string
@@ -1271,21 +1271,21 @@ func TestParseString_IngestionRequiresContainerImageOrBuild(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			yaml := "spec: blueprint/v1\nname: test-agent\nagent:\n  image: test:latest\ningestion:\n  reindex:" +
 				tt.container + "\n    trigger:\n      type: manual\n"
-			_, err := ParseString(yaml)
+			_, err := ParseSpecBytes([]byte(yaml))
 			if tt.wantErr {
 				if err == nil || !strings.Contains(err.Error(), "ingestion.reindex.container: image or build is required") {
-					t.Fatalf("ParseString with %s = %v, want a missing image or build error", tt.name, err)
+					t.Fatalf("ParseSpecBytes with %s = %v, want a missing image or build error", tt.name, err)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("ParseString with %s = %v, want nil", tt.name, err)
+				t.Fatalf("ParseSpecBytes with %s = %v, want nil", tt.name, err)
 			}
 		})
 	}
 }
 
-func TestParseString_RejectsInvalidInputNameInEverySection(t *testing.T) {
+func TestParseSpecBytes_RejectsInvalidInputNameInEverySection(t *testing.T) {
 	sections := map[string]string{
 		"inputs": `
 inputs:
@@ -1315,9 +1315,9 @@ integrations:
 			if !strings.Contains(body, "agent:") {
 				yaml += "agent:\n  image: test:latest\n"
 			}
-			_, err := ParseString(yaml)
+			_, err := ParseSpecBytes([]byte(yaml))
 			if err == nil || !strings.Contains(err.Error(), `name "BAD-NAME" is not a valid environment variable name`) {
-				t.Fatalf("ParseString with a bad name in %s = %v, want an invalid env var name error", section, err)
+				t.Fatalf("ParseSpecBytes with a bad name in %s = %v, want an invalid env var name error", section, err)
 			}
 		})
 	}
