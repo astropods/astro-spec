@@ -237,6 +237,9 @@ func ParseSpecBytes(data []byte) (*AstroSpec, error) {
 		if !validTriggerTypes[ing.Trigger.Type] {
 			return nil, fmt.Errorf("ingestion.%s.trigger.type: must be one of schedule, startup, manual, webhook", name)
 		}
+		if ing.Container.Image == "" && ing.Container.Build == nil {
+			return nil, fmt.Errorf("ingestion.%s.container: image or build is required", name)
+		}
 		if ing.Container.Build != nil {
 			if err := validateBuildConfig(fmt.Sprintf("ingestion.%s.container.build", name), ing.Container.Build); err != nil {
 				return nil, err
