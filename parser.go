@@ -420,6 +420,9 @@ func validateInput(path string, input Input) error {
 	if input.Name == "" {
 		return fmt.Errorf("%s: name is required", path)
 	}
+	if !IsValidVarName(input.Name) {
+		return fmt.Errorf("%s: name %q is not a valid environment variable name: use only letters, digits, and underscores, and start with a letter or underscore", path, input.Name)
+	}
 	if !validDatatypes[input.Datatype] {
 		return fmt.Errorf("%s: datatype must be one of string, boolean, number, array, object (got %q)", path, input.Datatype)
 	}
