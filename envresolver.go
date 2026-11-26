@@ -15,6 +15,7 @@ package spec
 
 import (
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -553,17 +554,20 @@ func resolveKnowledgeConnections(s *AstroSpec, addrs map[string]ConnectionAddres
 		return
 	}
 
-	prefixCount := make(map[string]int)
-	for _, k := range s.Knowledge {
+	names := sortedKeys(s.Knowledge)
+	groups := make(map[string][]string)
+	for _, name := range names {
+		k := s.Knowledge[name]
 		if k.IsProviderMode() && k.DeploysContainer(s.Providers) {
 			if prov := GetProvider(k.Provider); prov.EnvPrefix != "" {
-				prefixCount[prov.EnvPrefix]++
+				groups[prov.EnvPrefix] = append(groups[prov.EnvPrefix], name)
 			}
 		}
 	}
-
-	names := sortedKeys(s.Knowledge)
-	prefixFirst := make(map[string]bool)
+	primary := make(map[string]string, len(groups))
+	for prefix, group := range groups {
+		primary[prefix] = PickPrimaryName(group, s.Knowledge[group[0]].Provider)
+	}
 
 	for _, name := range names {
 		k := s.Knowledge[name]
@@ -576,18 +580,17 @@ func resolveKnowledgeConnections(s *AstroSpec, addrs map[string]ConnectionAddres
 			// §8.2 — self-hosted knowledge provider.
 			prov := GetProvider(k.Provider)
 			if prov.EnvPrefix != "" {
-				isDup := prefixCount[prov.EnvPrefix] > 1
-				isFirst := !prefixFirst[prov.EnvPrefix]
-				prefixFirst[prov.EnvPrefix] = true
+				isDup := len(groups[prov.EnvPrefix]) > 1
+				isPrimary := primary[prov.EnvPrefix] == name
 
-				for _, key := range qualifiedKeys(prov.EnvPrefix, name, "HOST", isDup, isFirst) {
+				for _, key := range ProviderEnvKeys(prov.EnvPrefix, name, k.Provider, "HOST", isDup, isPrimary) {
 					dst[key] = addr.Host
 				}
-				for _, key := range qualifiedKeys(prov.EnvPrefix, name, "PORT", isDup, isFirst) {
+				for _, key := range ProviderEnvKeys(prov.EnvPrefix, name, k.Provider, "PORT", isDup, isPrimary) {
 					dst[key] = addr.Port
 				}
 				if prov.URLScheme != "" {
-					for _, key := range qualifiedKeys(prov.EnvPrefix, name, "URL", isDup, isFirst) {
+					for _, key := range ProviderEnvKeys(prov.EnvPrefix, name, k.Provider, "URL", isDup, isPrimary) {
 						dst[key] = addr.URL
 					}
 				}
@@ -618,21 +621,30 @@ func resolveIntegrationConnections(s *AstroSpec, addrs map[string]ConnectionAddr
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// qualifiedKeys returns the env var keys for a single component+suffix, applying the
-// duplicate-handling rule from §8.1/§8.2.
-//
-//   - Not a duplicate: returns ["{prefix}_{suffix}"].
-//   - Duplicate, first: returns ["{prefix}_{ENTRY}_{suffix}", "{prefix}_{suffix}"].
-//   - Duplicate, not first: returns ["{prefix}_{ENTRY}_{suffix}"].
-func qualifiedKeys(prefix, entryName, suffix string, isDup, isFirst bool) []string {
-	if !isDup {
+// ProviderEnvKeys returns the env var keys one self-hosted entry gets for suffix,
+// per §8.2: bare when the entry is alone or named after its provider, qualified
+// otherwise, plus the bare key for the group's primary entry.
+func ProviderEnvKeys(prefix, entryName, providerName, suffix string, isDuplicate, isPrimary bool) []string {
+	if !isDuplicate || entryName == providerName {
 		return []string{prefix + "_" + suffix}
 	}
-	qualified := prefix + "_" + SanitizeEnvName(entryName) + "_" + suffix
-	if isFirst {
-		return []string{qualified, prefix + "_" + suffix}
+	keys := []string{prefix + "_" + SanitizeEnvName(entryName) + "_" + suffix}
+	if isPrimary {
+		keys = append(keys, prefix+"_"+suffix)
 	}
-	return []string{qualified}
+	return keys
+}
+
+// PickPrimaryName returns the entry of a self-hosted provider group that gets the
+// bare keys (§8.2): the one named after the provider, else the first alphabetically.
+func PickPrimaryName(names []string, providerName string) string {
+	if slices.Contains(names, providerName) {
+		return providerName
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return slices.Min(names)
 }
 
 func resolveInputValue(inp Input, provided map[string]string) string {

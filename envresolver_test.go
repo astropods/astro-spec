@@ -305,6 +305,57 @@ func TestCustomProviderCredentialKeys_DuplicateEntries_NoNameMatch_NoBareKey(t *
 	}
 }
 
+func TestAgentConnectionKeys_DuplicateSelfHostedKnowledge(t *testing.T) {
+	tests := []struct {
+		name      string
+		knowledge map[string]Knowledge
+		want      []string
+	}{
+		{
+			name:      "entry named after the provider is primary and gets only bare keys",
+			knowledge: map[string]Knowledge{"alpha": {Provider: "qdrant"}, "qdrant": {Provider: "qdrant"}},
+			want: []string{
+				"QDRANT_ALPHA_HOST", "QDRANT_ALPHA_PORT", "QDRANT_ALPHA_URL",
+				"QDRANT_HOST", "QDRANT_PORT", "QDRANT_URL",
+			},
+		},
+		{
+			name:      "no name match makes the first alphabetically primary",
+			knowledge: map[string]Knowledge{"users": {Provider: "postgres"}, "events": {Provider: "postgres"}},
+			want: []string{
+				"POSTGRES_EVENTS_HOST", "POSTGRES_EVENTS_PORT",
+				"POSTGRES_HOST", "POSTGRES_PORT",
+				"POSTGRES_USERS_HOST", "POSTGRES_USERS_PORT",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &AstroSpec{Name: "agent", Agent: Container{Image: "a:1"}, Knowledge: tt.knowledge}
+			got := AgentConnectionKeys(s, nil)
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d keys %v, want %v", len(got), got, tt.want)
+			}
+			for _, key := range tt.want {
+				if _, ok := got[key]; !ok {
+					t.Errorf("missing %s; got %v", key, got)
+				}
+			}
+		})
+	}
+
+	s := &AstroSpec{Name: "agent", Agent: Container{Image: "a:1"}, Knowledge: map[string]Knowledge{
+		"alpha": {Provider: "qdrant"}, "qdrant": {Provider: "qdrant"},
+	}}
+	addrs := map[string]ConnectionAddress{
+		"knowledge.alpha":  {Host: "alpha-host"},
+		"knowledge.qdrant": {Host: "qdrant-host"},
+	}
+	if got := AgentConnectionKeys(s, addrs)["QDRANT_HOST"]; got != "qdrant-host" {
+		t.Errorf("QDRANT_HOST = %q, want qdrant-host: the bare key must point at the entry named after the provider", got)
+	}
+}
+
 func TestCustomProviderVariableKeys(t *testing.T) {
 	jira := CustomProvider{Scope: []string{"integrations"}, Variables: []Input{
 		{Name: "API_KEY", Datatype: "string", Secret: true},
