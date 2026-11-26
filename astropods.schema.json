@@ -1100,7 +1100,7 @@
                             "type": "string"
                           },
                           "type": "array",
-                          "description": "Slack user IDs allowed to interact with the agent. Empty means allow all users."
+                          "description": "Deprecated: ignored. Restrict access with allowed_channel_ids."
                         },
                         "observe_channel_ids": {
                           "items": {
