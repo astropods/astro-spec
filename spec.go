@@ -139,8 +139,8 @@ type Meta struct {
 }
 
 // KnownSpecVersions are the values of the top-level `spec` field that the
-// parser understands. blueprint/v1 is current; package/v1 is its former name.
-var KnownSpecVersions = []string{"blueprint/v1", "package/v1"}
+// parser understands.
+var KnownSpecVersions = []string{"blueprint/v1"}
 
 // IsKnownSpecVersion reports whether version names a spec this parser knows.
 func IsKnownSpecVersion(version string) bool {

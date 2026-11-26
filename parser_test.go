@@ -1318,7 +1318,7 @@ func TestIsKnownSpecVersion(t *testing.T) {
 		want    bool
 	}{
 		{version: "blueprint/v1", want: true},
-		{version: "package/v1", want: true},
+		{version: "package/v1"},
 		{version: " blueprint/v1 ", want: true},
 		{version: "banana/v9"},
 		{version: ""},
