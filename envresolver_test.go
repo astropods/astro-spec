@@ -305,6 +305,81 @@ func TestCustomProviderCredentialKeys_DuplicateEntries_NoNameMatch_NoBareKey(t *
 	}
 }
 
+func TestCustomProviderVariableKeys(t *testing.T) {
+	jira := CustomProvider{Scope: []string{"integrations"}, Variables: []Input{
+		{Name: "API_KEY", Datatype: "string", Secret: true},
+		{Name: "BASE_URL", Datatype: "string", Default: "https://example.atlassian.net"},
+	}}
+	tests := []struct {
+		name         string
+		integrations map[string]Integration
+		want         map[string]bool
+	}{
+		{
+			name:         "single entry gets bare keys for secret and non-secret variables",
+			integrations: map[string]Integration{"jira": {Provider: "my-jira"}},
+			want:         map[string]bool{"MY_JIRA_API_KEY": true, "MY_JIRA_BASE_URL": false},
+		},
+		{
+			name: "duplicate entries with no name match get only qualified keys",
+			integrations: map[string]Integration{
+				"jira-dev":  {Provider: "my-jira"},
+				"jira-prod": {Provider: "my-jira"},
+			},
+			want: map[string]bool{
+				"MY_JIRA_JIRA_DEV_API_KEY": true, "MY_JIRA_JIRA_DEV_BASE_URL": false,
+				"MY_JIRA_JIRA_PROD_API_KEY": true, "MY_JIRA_JIRA_PROD_BASE_URL": false,
+			},
+		},
+		{
+			name: "entry named after the provider gets the bare keys",
+			integrations: map[string]Integration{
+				"my-jira": {Provider: "my-jira"},
+				"backup":  {Provider: "my-jira"},
+			},
+			want: map[string]bool{
+				"MY_JIRA_API_KEY": true, "MY_JIRA_BASE_URL": false,
+				"MY_JIRA_BACKUP_API_KEY": true, "MY_JIRA_BACKUP_BASE_URL": false,
+			},
+		},
+		{
+			name:         "unreferenced provider produces no keys",
+			integrations: map[string]Integration{"search": {Container: &ContainerConfig{Image: "s:1"}}},
+			want:         map[string]bool{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &AstroSpec{
+				Name:         "agent",
+				Agent:        Container{Image: "a:1"},
+				Providers:    map[string]CustomProvider{"my-jira": jira},
+				Integrations: tt.integrations,
+			}
+			got := CustomProviderVariableKeys(s)
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d keys %v, want %d %v", len(got), got, len(tt.want), tt.want)
+			}
+			for key, secret := range tt.want {
+				pv, ok := got[key]
+				if !ok {
+					t.Errorf("missing key %s; got %v", key, got)
+					continue
+				}
+				if pv.Provider != "my-jira" {
+					t.Errorf("%s: provider = %q, want my-jira", key, pv.Provider)
+				}
+				if pv.Variable.Secret != secret {
+					t.Errorf("%s: secret = %v, want %v", key, pv.Variable.Secret, secret)
+				}
+				if !secret && pv.Variable.Default != "https://example.atlassian.net" {
+					t.Errorf("%s: default = %q, want the declared default carried through", key, pv.Variable.Default)
+				}
+			}
+		})
+	}
+}
+
 func TestCustomProviderCredentialKeys_UnreferencedProviderExcluded(t *testing.T) {
 	// A provider defined but not referenced by any component produces no keys.
 	s := &AstroSpec{
