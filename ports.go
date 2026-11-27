@@ -21,7 +21,11 @@ const (
 	PortProtocolTCP         = "tcp"
 )
 
-var validPortName = regexp.MustCompile(`^[a-z][a-z0-9-]{0,14}$`)
+var validPortName = regexp.MustCompile(`^[a-z]([a-z0-9-]{0,13}[a-z0-9])?$`)
+
+func IsValidPortName(name string) bool {
+	return validPortName.MatchString(name) && !strings.Contains(name, "--")
+}
 
 var validPortProtocols = map[string]bool{PortProtocolHTTP: true, PortProtocolGRPC: true, PortProtocolTCP: true}
 
@@ -285,8 +289,8 @@ func (c Container) PortEnv() map[string]string {
 
 func ValidatePorts(c Container) error {
 	for name, p := range c.Ports {
-		if !validPortName.MatchString(name) {
-			return fmt.Errorf("agent.ports.%s: name must be 1 to 15 lowercase letters, digits, or dashes, starting with a letter", name)
+		if !IsValidPortName(name) {
+			return fmt.Errorf("agent.ports.%s: name must be 1 to 15 lowercase letters, digits, or single dashes, starting with a letter and ending with a letter or digit", name)
 		}
 		if p.Port < 1 || p.Port > 65535 {
 			return fmt.Errorf("agent.ports.%s: port must be from 1 to 65535 (got %d)", name, p.Port)
