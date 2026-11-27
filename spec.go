@@ -152,13 +152,14 @@ func IsKnownSpecVersion(version string) bool {
 const AgentCoreRuntime = "agentcore"
 
 type Container struct {
-	Image       string       `json:"image,omitempty" yaml:"image,omitempty"`
-	Build       *BuildConfig `json:"build,omitempty" yaml:"build,omitempty"`
-	Distributed bool         `json:"distributed,omitempty" yaml:"distributed,omitempty" jsonschema:"description=Deprecated: ignored. The replica count is set when the agent is deployed"`
-	Interfaces  *Interfaces  `json:"interfaces,omitempty" yaml:"interfaces,omitempty" jsonschema:"description=Agent capabilities: frontend and/or messaging"`
-	Healthcheck *Healthcheck `json:"healthcheck,omitempty" yaml:"healthcheck,omitempty"`
-	Inputs      []Input      `json:"inputs,omitempty" yaml:"inputs,omitempty" jsonschema:"description=User-supplied inputs injected into the agent container"`
-	Jobs        []Job        `json:"jobs,omitempty" yaml:"jobs,omitempty" jsonschema:"description=Jobs the agent takes tasks for on the agent mesh. Advertised only when the agent is deployed with the mesh interface. Every agent also has agent.<name>"`
+	Image       string               `json:"image,omitempty" yaml:"image,omitempty"`
+	Build       *BuildConfig         `json:"build,omitempty" yaml:"build,omitempty"`
+	Distributed bool                 `json:"distributed,omitempty" yaml:"distributed,omitempty" jsonschema:"description=Deprecated: ignored. The replica count is set when the agent is deployed"`
+	Interfaces  *Interfaces          `json:"interfaces,omitempty" yaml:"interfaces,omitempty" jsonschema:"description=Agent capabilities: frontend and/or messaging"`
+	Ports       map[string]AgentPort `json:"ports,omitempty" yaml:"ports,omitempty" jsonschema:"description=Ports the agent container listens on\\, keyed by name. Each is injected as ASTRO_PORT_<NAME>"`
+	Healthcheck *Healthcheck         `json:"healthcheck,omitempty" yaml:"healthcheck,omitempty"`
+	Inputs      []Input              `json:"inputs,omitempty" yaml:"inputs,omitempty" jsonschema:"description=User-supplied inputs injected into the agent container"`
+	Jobs        []Job                `json:"jobs,omitempty" yaml:"jobs,omitempty" jsonschema:"description=Jobs the agent takes tasks for on the agent mesh. Advertised only when the agent is deployed with the mesh interface. Every agent also has agent.<name>"`
 	// Annotations are agent-scoped key/value hints. Well-known key: "runtime"
 	// selects the agent runtime ("agentcore" for AWS Bedrock AgentCore mode;
 	// empty/absent = the default runtime).
@@ -188,13 +189,13 @@ func (c Container) Runtime() string {
 // When nil (omitted), the platform defaults to messaging enabled.
 // When present, both fields default to false.
 type Interfaces struct {
-	Frontend  bool `json:"frontend,omitempty" yaml:"frontend,omitempty" jsonschema:"description=Agent serves its own web interface on port 80"`
-	Messaging bool `json:"messaging,omitempty" yaml:"messaging,omitempty" jsonschema:"description=Agent supports the messaging protocol"`
+	Frontend  Frontend `json:"frontend,omitempty,omitzero" yaml:"frontend,omitempty" jsonschema:"description=Agent serves its own web UI. A string names the exposed agent.ports entry Launch opens"`
+	Messaging bool     `json:"messaging,omitempty" yaml:"messaging,omitempty" jsonschema:"description=Agent supports the messaging protocol"`
 }
 
 // HasFrontend reports whether the agent serves its own web frontend.
 func (c Container) HasFrontend() bool {
-	return c.Interfaces != nil && c.Interfaces.Frontend
+	return c.Interfaces != nil && c.Interfaces.Frontend.Enabled
 }
 
 // HasMessaging reports whether the agent supports the messaging protocol.
@@ -412,7 +413,7 @@ func (DevInterfaces) JSONSchema() *jsonschema.Schema {
 	portProps := jsonschema.NewProperties()
 	portProps.Set("port", &jsonschema.Schema{
 		Type:        "integer",
-		Description: "Port the agent serves on locally. Platform proxies port 80 to this. Default: 80",
+		Description: "Deprecated: set the port in agent.ports.",
 	})
 
 	slackConfigProps := jsonschema.NewProperties()
@@ -529,7 +530,7 @@ func (d *DevInterfaces) UnmarshalJSON(data []byte) error {
 
 // DevFrontend configures the agent's frontend for local development.
 type DevFrontend struct {
-	Port int `json:"port,omitempty" yaml:"port,omitempty" jsonschema:"description=Port the agent serves on locally. Platform proxies port 80 to this. Default: 80"`
+	Port int `json:"port,omitempty" yaml:"port,omitempty" jsonschema:"description=Deprecated: set the port in agent.ports."`
 }
 
 // DevMessaging configures the messaging sidecar for local development.

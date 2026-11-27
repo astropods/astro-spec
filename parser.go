@@ -110,6 +110,9 @@ func ParseSpecBytes(data []byte) (*AstroSpec, error) {
 	if err := ValidateJobs(spec.Agent.Jobs); err != nil {
 		return nil, err
 	}
+	if err := ValidatePorts(spec.Agent); err != nil {
+		return nil, err
+	}
 
 	// Validate custom providers
 	validScopeValues := map[string]bool{"models": true, "knowledge": true, "integrations": true}
@@ -426,6 +429,9 @@ func validateInput(path string, input Input) error {
 	if !IsValidVarName(input.Name) {
 		return fmt.Errorf("%s: name %q is not a valid environment variable name: use only letters, digits, and underscores, and start with a letter or underscore", path, input.Name)
 	}
+	if strings.HasPrefix(strings.ToUpper(input.Name), PortEnvPrefix) {
+		return fmt.Errorf("%s: name %q starts with %s, which the platform reserves for agent ports", path, input.Name, PortEnvPrefix)
+	}
 	if !validDatatypes[input.Datatype] {
 		return fmt.Errorf("%s: datatype must be one of string, boolean, number, array, object (got %q)", path, input.Datatype)
 	}
@@ -504,6 +510,13 @@ func DeprecationWarnings(s *AstroSpec) []string {
 	var warnings []string
 	if s.Agent.AIGateway {
 		warnings = append(warnings, "agent.astro_ai_gateway is deprecated; declare a model with `provider: gateway` (and list selectable models) instead")
+	}
+	if s.Dev != nil && s.Dev.Interfaces != nil && s.Dev.Interfaces.Frontend != nil && s.Dev.Interfaces.Frontend.Port != 0 {
+		if len(s.Agent.Ports) > 0 {
+			warnings = append(warnings, "dev.interfaces.frontend.port is deprecated and ignored because agent.ports is set; delete it")
+		} else {
+			warnings = append(warnings, "dev.interfaces.frontend.port is deprecated; set the port in agent.ports instead")
+		}
 	}
 	if s.Agent.Distributed {
 		warnings = append(warnings, "agent.distributed is deprecated and ignored; the replica count is set when the agent is deployed")
