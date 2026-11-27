@@ -16,6 +16,7 @@ const (
 	DefaultFrontendPortName = "http"
 	DefaultFrontendPort     = 80
 	PortEnvPrefix           = "ASTRO_PORT_"
+	ExtURLEnvPrefix         = "ASTRO_EXT_URL_"
 	PortProtocolHTTP        = "http"
 	PortProtocolGRPC        = "grpc"
 	PortProtocolTCP         = "tcp"
@@ -275,6 +276,10 @@ func PortEnvName(portName string) string {
 	return PortEnvPrefix + SanitizeEnvName(portName)
 }
 
+func ExtURLEnvName(portName string) string {
+	return ExtURLEnvPrefix + SanitizeEnvName(portName)
+}
+
 func (c Container) PortEnv() map[string]string {
 	ports := c.ResolvedPorts()
 	env := make(map[string]string, len(ports)+1)
@@ -332,9 +337,6 @@ func ValidatePorts(c Container) error {
 		}
 	}
 
-	if len(exposed) > 1 {
-		return fmt.Errorf("agent.ports: at most one port may set expose: true (got %s)", strings.Join(exposed, ", "))
-	}
 
 	seen := map[int]string{}
 	for _, name := range c.SortedPortNames() {
