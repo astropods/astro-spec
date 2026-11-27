@@ -239,6 +239,9 @@ func TestParseSpecBytes_PortRules(t *testing.T) {
 	}{
 		{name: "rule 34: uppercase name", agent: "  ports:\n    Web: 3000\n", wantErr: "agent.ports.Web: name must be"},
 		{name: "rule 34: name over 15 characters", agent: "  ports:\n    abcdefghijklmnop: 3000\n", wantErr: "name must be"},
+		{name: "rule 34: trailing dash", agent: "  ports:\n    web-: 3000\n", wantErr: "agent.ports.web-: name must be"},
+		{name: "rule 34: double dash", agent: "  ports:\n    a--b: 3000\n", wantErr: "agent.ports.a--b: name must be"},
+		{name: "rule 34: leading digit", agent: "  ports:\n    1web: 3000\n", wantErr: "agent.ports.1web: name must be"},
 		{name: "rule 35: port zero", agent: "  ports:\n    a: 0\n", wantErr: "port must be from 1 to 65535"},
 		{name: "rule 35: port too high", agent: "  ports:\n    a: 70000\n", wantErr: "port must be from 1 to 65535"},
 		{name: "rule 35: duplicate port", agent: "  ports:\n    a: 9000\n    b: 9000\n", wantErr: "port 9000 is already used"},
@@ -302,5 +305,18 @@ func TestSchema_AcceptsPortsAndNamedFrontend(t *testing.T) {
 	frontend := agent["interfaces"].(map[string]any)["properties"].(map[string]any)["frontend"].(map[string]any)
 	if _, ok := frontend["oneOf"]; !ok {
 		t.Errorf("schema agent.interfaces.frontend = %v, want a oneOf of boolean and string", frontend)
+	}
+}
+
+func TestIsValidPortName_MatchesKubernetesServiceNames(t *testing.T) {
+	for _, name := range []string{"a", "web", "admin-api", "a1", "abcdefghijklmno"} {
+		if !IsValidPortName(name) {
+			t.Errorf("IsValidPortName(%q) = false, want true", name)
+		}
+	}
+	for _, name := range []string{"", "Web", "1a", "web-", "-web", "a--b", "abcdefghijklmnop", "a_b"} {
+		if IsValidPortName(name) {
+			t.Errorf("IsValidPortName(%q) = true, want false: Kubernetes rejects it as a port name", name)
+		}
 	}
 }
