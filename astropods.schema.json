@@ -92,8 +92,17 @@
         "interfaces": {
           "properties": {
             "frontend": {
-              "type": "boolean",
-              "description": "Agent serves its own web interface on port 80"
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9-]{0,14}$",
+                  "description": "Name of the exposed agent.ports entry the frontend serves on"
+                }
+              ],
+              "description": "Agent serves its own web UI. A string names the exposed agent.ports entry Launch opens"
             },
             "messaging": {
               "type": "boolean",
@@ -103,6 +112,48 @@
           "additionalProperties": false,
           "type": "object",
           "description": "Agent capabilities: frontend and/or messaging"
+        },
+        "ports": {
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "maximum": 65535,
+                "minimum": 1,
+                "description": "Shorthand for {port: N}"
+              },
+              {
+                "properties": {
+                  "port": {
+                    "type": "integer",
+                    "maximum": 65535,
+                    "minimum": 1,
+                    "description": "Container port the agent listens on"
+                  },
+                  "protocol": {
+                    "type": "string",
+                    "enum": [
+                      "http",
+                      "grpc",
+                      "tcp"
+                    ],
+                    "description": "Protocol the port speaks. Default: http. An exposed port must use http"
+                  },
+                  "expose": {
+                    "type": "boolean",
+                    "description": "Give this port a public ingress host. The frontend port sits behind the access settings; any other exposed port is open to the internet. Default: false"
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "port"
+                ]
+              }
+            ]
+          },
+          "type": "object",
+          "description": "Ports the agent container listens on, keyed by name. Each is injected as ASTRO_PORT_\u003cNAME\u003e"
         },
         "healthcheck": {
           "properties": {
@@ -1063,7 +1114,7 @@
                   "properties": {
                     "port": {
                       "type": "integer",
-                      "description": "Port the agent serves on locally. Platform proxies port 80 to this. Default: 80"
+                      "description": "Deprecated: set the port in agent.ports."
                     }
                   },
                   "additionalProperties": false,

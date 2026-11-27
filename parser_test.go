@@ -470,8 +470,8 @@ func TestContainer_HasMessaging(t *testing.T) {
 		{"nil interfaces (backward compat)", nil, true},
 		{"messaging true", &Interfaces{Messaging: true}, true},
 		{"messaging false", &Interfaces{Messaging: false}, false},
-		{"frontend only", &Interfaces{Frontend: true}, false},
-		{"both enabled", &Interfaces{Frontend: true, Messaging: true}, true},
+		{"frontend only", &Interfaces{Frontend: Frontend{Enabled: true}}, false},
+		{"both enabled", &Interfaces{Frontend: Frontend{Enabled: true}, Messaging: true}, true},
 		{"empty interfaces", &Interfaces{}, false},
 	}
 	for _, tt := range tests {
@@ -491,10 +491,10 @@ func TestContainer_HasFrontend(t *testing.T) {
 		want       bool
 	}{
 		{"nil interfaces", nil, false},
-		{"frontend true", &Interfaces{Frontend: true}, true},
-		{"frontend false", &Interfaces{Frontend: false}, false},
+		{"frontend true", &Interfaces{Frontend: Frontend{Enabled: true}}, true},
+		{"frontend false", &Interfaces{}, false},
 		{"messaging only", &Interfaces{Messaging: true}, false},
-		{"both enabled", &Interfaces{Frontend: true, Messaging: true}, true},
+		{"both enabled", &Interfaces{Frontend: Frontend{Enabled: true}, Messaging: true}, true},
 		{"empty interfaces", &Interfaces{}, false},
 	}
 	for _, tt := range tests {
