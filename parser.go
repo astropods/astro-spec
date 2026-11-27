@@ -429,8 +429,10 @@ func validateInput(path string, input Input) error {
 	if !IsValidVarName(input.Name) {
 		return fmt.Errorf("%s: name %q is not a valid environment variable name: use only letters, digits, and underscores, and start with a letter or underscore", path, input.Name)
 	}
-	if strings.HasPrefix(strings.ToUpper(input.Name), PortEnvPrefix) {
-		return fmt.Errorf("%s: name %q starts with %s, which the platform reserves for agent ports", path, input.Name, PortEnvPrefix)
+	for _, prefix := range []string{PortEnvPrefix, ExtURLEnvPrefix} {
+		if strings.HasPrefix(strings.ToUpper(input.Name), prefix) {
+			return fmt.Errorf("%s: name %q starts with %s, which the platform reserves for agent ports", path, input.Name, prefix)
+		}
 	}
 	if !validDatatypes[input.Datatype] {
 		return fmt.Errorf("%s: datatype must be one of string, boolean, number, array, object (got %q)", path, input.Datatype)

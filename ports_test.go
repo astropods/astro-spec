@@ -252,10 +252,10 @@ func TestParseSpecBytes_PortRules(t *testing.T) {
 		{name: "rule 37: frontend names an internal port", agent: "  interfaces:\n    frontend: web\n  ports:\n    web: 3000\n", wantErr: "must set expose: true to serve the frontend"},
 		{name: "rule 38: frontend true with two exposed ports", agent: "  interfaces:\n    frontend: true\n  ports:\n    a: {port: 3000, expose: true}\n    b: {port: 4000, expose: true}\n", wantErr: "several ports are exposed (a, b)"},
 		{name: "rule 38: frontend true with an internal http port", agent: "  interfaces:\n    frontend: true\n  ports:\n    http: 8080\n", wantErr: "agent.ports.http exists but is not exposed"},
-		{name: "rule 39: two exposed ports", agent: "  interfaces:\n    frontend: a\n  ports:\n    a: {port: 3000, expose: true}\n    b: {port: 4000, expose: true}\n", wantErr: "at most one port may set expose: true"},
 		{name: "rule 40: healthcheck path with no port", agent: "  healthcheck:\n    path: /health\n", wantErr: "agent.healthcheck.path: needs a frontend port"},
 		{name: "rule 40: healthcheck path with two internal ports", agent: "  ports:\n    a: 9000\n    b: 9001\n  healthcheck:\n    path: /health\n", wantErr: "agent.healthcheck.path: needs a frontend port"},
 		{name: "rule 41: reserved input prefix", agent: "  inputs:\n    - name: ASTRO_PORT_X\n      datatype: string\n", wantErr: "reserves for agent ports"},
+		{name: "rule 41: reserved external URL prefix", agent: "  inputs:\n    - name: ASTRO_EXT_URL_X\n      datatype: string\n", wantErr: "starts with ASTRO_EXT_URL_"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -272,6 +272,8 @@ func TestParseSpecBytes_AcceptsValidPorts(t *testing.T) {
 		"frontend true alone":                  "  interfaces:\n    frontend: true\n",
 		"frontend with exposed and internal":   "  interfaces:\n    frontend: true\n  ports:\n    web: {port: 3000, expose: true}\n    admin: {port: 9000, protocol: grpc}\n",
 		"open port without frontend":           "  ports:\n    hooks: {port: 3000, expose: true}\n",
+		"named frontend and an open port":      "  interfaces:\n    frontend: web\n  ports:\n    web: {port: 3000, expose: true}\n    hooks: {port: 8088, expose: true}\n",
+		"several open ports without frontend":  "  ports:\n    a: {port: 3000, expose: true}\n    b: {port: 4000, expose: true}\n",
 		"healthcheck path with one port":       "  ports:\n    a: 9000\n  healthcheck:\n    path: /health\n",
 		"healthcheck path with frontend":       "  interfaces:\n    frontend: true\n  ports:\n    a: 9000\n  healthcheck:\n    path: /health\n",
 		"frontend false with an internal port": "  interfaces:\n    frontend: false\n  ports:\n    a: 9000\n",
@@ -318,5 +320,11 @@ func TestIsValidPortName_MatchesKubernetesServiceNames(t *testing.T) {
 		if IsValidPortName(name) {
 			t.Errorf("IsValidPortName(%q) = true, want false: Kubernetes rejects it as a port name", name)
 		}
+	}
+}
+
+func TestExtURLEnvName(t *testing.T) {
+	if got := ExtURLEnvName("admin-api"); got != "ASTRO_EXT_URL_ADMIN_API" {
+		t.Errorf("ExtURLEnvName(admin-api) = %q, want ASTRO_EXT_URL_ADMIN_API", got)
 	}
 }
