@@ -25,15 +25,12 @@ var validPortName = regexp.MustCompile(`^[a-z][a-z0-9-]{0,14}$`)
 
 var validPortProtocols = map[string]bool{PortProtocolHTTP: true, PortProtocolGRPC: true, PortProtocolTCP: true}
 
-// AgentPort is one entry of agent.ports. In YAML or JSON an integer is
-// shorthand for {port: N}.
 type AgentPort struct {
 	Port     int    `json:"port" yaml:"port"`
 	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty"`
 	Expose   bool   `json:"expose,omitempty" yaml:"expose,omitempty"`
 }
 
-// EffectiveProtocol returns the declared protocol, or http when unset.
 func (p AgentPort) EffectiveProtocol() string {
 	if p.Protocol == "" {
 		return PortProtocolHTTP
@@ -109,8 +106,6 @@ func (AgentPort) JSONSchema() *jsonschema.Schema {
 	}
 }
 
-// Frontend is agent.interfaces.frontend: false, true, or the name of the
-// agent.ports entry the frontend serves on.
 type Frontend struct {
 	Enabled bool
 	Port    string
@@ -176,8 +171,6 @@ func (Frontend) JSONSchema() *jsonschema.Schema {
 	}
 }
 
-// ResolvedPorts returns agent.ports with the frontend default applied: a
-// frontend agent with no exposed port gets http: {port: 80, expose: true}.
 func (c Container) ResolvedPorts() map[string]AgentPort {
 	out := make(map[string]AgentPort, len(c.Ports)+1)
 	exposed := false
@@ -195,8 +188,6 @@ func (c Container) ResolvedPorts() map[string]AgentPort {
 	return out
 }
 
-// UsesDefaultFrontendPort reports whether the frontend port is the http: 80
-// entry ResolvedPorts adds.
 func (c Container) UsesDefaultFrontendPort() bool {
 	if !c.HasFrontend() || c.Interfaces.Frontend.Port != "" {
 		return false
@@ -210,8 +201,6 @@ func (c Container) UsesDefaultFrontendPort() bool {
 	return !declared
 }
 
-// FrontendPortName returns the agent.ports entry the frontend serves on, or
-// "" when the agent has no frontend.
 func (c Container) FrontendPortName() string {
 	if !c.HasFrontend() {
 		return ""
@@ -231,7 +220,6 @@ func (c Container) FrontendPortName() string {
 	return ""
 }
 
-// FrontendPort returns the frontend's resolved port entry.
 func (c Container) FrontendPort() (string, AgentPort, bool) {
 	name := c.FrontendPortName()
 	if name == "" {
@@ -241,8 +229,6 @@ func (c Container) FrontendPort() (string, AgentPort, bool) {
 	return name, p, ok
 }
 
-// SortedPortNames returns the resolved port names with the frontend port
-// first and the rest in name order.
 func (c Container) SortedPortNames() []string {
 	ports := c.ResolvedPorts()
 	frontend := c.FrontendPortName()
@@ -259,8 +245,6 @@ func (c Container) SortedPortNames() []string {
 	return names
 }
 
-// PrimaryPortName returns the port ASTRO_AGENT_URL points at: the frontend
-// port, else the first port by name, else "".
 func (c Container) PrimaryPortName() string {
 	names := c.SortedPortNames()
 	if len(names) == 0 {
@@ -269,8 +253,6 @@ func (c Container) PrimaryPortName() string {
 	return names[0]
 }
 
-// ProbePortName returns the port healthcheck.path probes: the frontend port,
-// else the only port, else "".
 func (c Container) ProbePortName() string {
 	if name := c.FrontendPortName(); name != "" {
 		return name
@@ -285,13 +267,10 @@ func (c Container) ProbePortName() string {
 	return ""
 }
 
-// PortEnvName returns the env var a port's number is injected as.
 func PortEnvName(portName string) string {
 	return PortEnvPrefix + SanitizeEnvName(portName)
 }
 
-// PortEnv returns the port env vars the agent container receives:
-// ASTRO_PORT_<NAME> for every resolved port, and PORT set to the frontend port.
 func (c Container) PortEnv() map[string]string {
 	ports := c.ResolvedPorts()
 	env := make(map[string]string, len(ports)+1)
@@ -304,8 +283,6 @@ func (c Container) PortEnv() map[string]string {
 	return env
 }
 
-// ValidatePorts applies the agent.ports and agent.interfaces.frontend rules
-// ParseSpec enforces, for a container that arrives already decoded.
 func ValidatePorts(c Container) error {
 	for name, p := range c.Ports {
 		if !validPortName.MatchString(name) {
